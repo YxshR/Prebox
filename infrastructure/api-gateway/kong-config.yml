@@ -1,0 +1,170 @@
+# Kong API Gateway Configuration for Production
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-config
+  namespace: bulk-email-platform
+data:
+  kong.conf: |
+    # Database
+    database = postgres
+    pg_host = postgres-primary-service
+    pg_port = 5432
+    pg_database = kong
+    pg_user = kong
+    pg_password = kong_password
+    
+    # Logging
+    log_level = notice
+    access_log = /dev/stdout
+    error_log = /dev/stderr
+    
+    # Performance
+    worker_processes = auto
+    worker_connections = 16384
+    
+    # Security
+    ssl_cert = /etc/ssl/certs/kong.crt
+    ssl_cert_key = /etc/ssl/private/kong.key
+    
+    # Plugins
+    plugins = bundled,rate-limiting,cors,jwt,key-auth,prometheus
+    
+    # Admin API
+    admin_listen = 0.0.0.0:8001
+    admin_access_log = /dev/stdout
+    admin_error_log = /dev/stderr
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong-gateway
+  namespace: bulk-email-platform
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kong-gateway
+  template:
+    metadata:
+      labels:
+        app: kong-gateway
+    spec:
+      initContainers:
+      - name: kong-migration
+        image: kong:3.4
+        command: ["kong", "migrations", "bootstrap"]
+        env:
+        - name: KONG_DATABASE
+          value: "postgres"
+        - name: KONG_PG_HOST
+          value: "postgres-primary-service"
+        - name: KONG_PG_DATABASE
+          value: "kong"
+        - name: KONG_PG_USER
+          value: "kong"
+        - name: KONG_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kong-credentials
+              key: password
+      containers:
+      - name: kong
+        image: kong:3.4
+        env:
+        - name: KONG_DATABASE
+          value: "postgres"
+        - name: KONG_PG_HOST
+          value: "postgres-primary-service"
+        - name: KONG_PG_DATABASE
+          value: "kong"
+        - name: KONG_PG_USER
+          value: "kong"
+        - name: KONG_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kong-credentials
+              key: password
+        - name: KONG_PROXY_ACCESS_LOG
+          value: "/dev/stdout"
+        - name: KONG_ADMIN_ACCESS_LOG
+          value: "/dev/stdout"
+        - name: KONG_PROXY_ERROR_LOG
+          value: "/dev/stderr"
+        - name: KONG_ADMIN_ERROR_LOG
+          value: "/dev/stderr"
+        - name: KONG_ADMIN_LISTEN
+          value: "0.0.0.0:8001"
+        ports:
+        - containerPort: 8000
+          name: proxy
+        - containerPort: 8443
+          name: proxy-ssl
+        - containerPort: 8001
+          name: admin
+        - containerPort: 8444
+          name: admin-ssl
+        volumeMounts:
+        - name: kong-config
+          mountPath: /etc/kong/kong.conf
+          subPath: kong.conf
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /status
+            port: 8001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /status
+            port: 8001
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: kong-config
+        configMap:
+          name: kong-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-proxy-service
+  namespace: bulk-email-platform
+spec:
+  selector:
+    app: kong-gateway
+  ports:
+  - name: proxy
+    port: 8000
+    targetPort: 8000
+  - name: proxy-ssl
+    port: 8443
+    targetPort: 8443
+  type: LoadBalancer
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-admin-service
+  namespace: bulk-email-platform
+spec:
+  selector:
+    app: kong-gateway
+  ports:
+  - name: admin
+    port: 8001
+    targetPort: 8001
+  - name: admin-ssl
+    port: 8444
+    targetPort: 8444
+  type: ClusterIP

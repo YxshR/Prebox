@@ -1,0 +1,179 @@
+export interface User {
+    id: string;
+    email: string;
+    phone?: string;
+    firstName?: string;
+    lastName?: string;
+    tenantId: string;
+    role: UserRole;
+    subscriptionTier: SubscriptionTier;
+    isEmailVerified: boolean;
+    isPhoneVerified: boolean;
+    googleId?: string;
+    createdAt: Date;
+    lastLoginAt: Date;
+}
+export interface UserRegistration {
+    email: string;
+    password: string;
+    phone?: string;
+    firstName?: string;
+    lastName?: string;
+    registrationMethod: 'email' | 'phone_google';
+}
+export interface LoginCredentials {
+    email: string;
+    password: string;
+}
+export interface AuthToken {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+    user: User;
+}
+export interface ApiKey {
+    id: string;
+    userId: string;
+    key: string;
+    name: string;
+    scopes: string[];
+    isActive: boolean;
+    lastUsedAt?: Date;
+    createdAt: Date;
+    expiresAt?: Date;
+}
+export interface OTPVerification {
+    id: string;
+    userId: string;
+    phone: string;
+    code: string;
+    type: 'registration' | 'login' | 'password_reset';
+    expiresAt: Date;
+    isUsed: boolean;
+    createdAt: Date;
+}
+export interface EmailVerification {
+    id: string;
+    userId: string;
+    email: string;
+    token: string;
+    expiresAt: Date;
+    isUsed: boolean;
+    createdAt: Date;
+}
+export declare enum UserRole {
+    USER = "user",
+    ADMIN = "admin",
+    SUPER_ADMIN = "super_admin"
+}
+export declare enum SubscriptionTier {
+    FREE = "free",
+    PAID_STANDARD = "paid_standard",
+    PREMIUM = "premium",
+    ENTERPRISE = "enterprise"
+}
+export interface Campaign {
+    id: string;
+    tenantId: string;
+    name: string;
+    templateId: string;
+    listIds: string[];
+    status: CampaignStatus;
+    scheduledAt?: Date;
+    sentAt?: Date;
+    metrics: CampaignMetrics;
+}
+export declare enum CampaignStatus {
+    DRAFT = "draft",
+    SCHEDULED = "scheduled",
+    SENDING = "sending",
+    SENT = "sent",
+    PAUSED = "paused",
+    FAILED = "failed"
+}
+export interface CampaignMetrics {
+    totalRecipients: number;
+    delivered: number;
+    bounced: number;
+    opened: number;
+    clicked: number;
+    unsubscribed: number;
+    complained: number;
+}
+export interface EmailTemplate {
+    id: string;
+    tenantId: string;
+    name: string;
+    subject: string;
+    htmlContent: string;
+    textContent: string;
+    variables: TemplateVariable[];
+    isAIGenerated: boolean;
+    createdAt: Date;
+}
+export interface TemplateVariable {
+    name: string;
+    type: 'text' | 'number' | 'date' | 'boolean';
+    defaultValue?: string;
+    required: boolean;
+}
+export interface Contact {
+    id: string;
+    tenantId: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    customFields: Record<string, any>;
+    subscriptionStatus: SubscriptionStatus;
+    createdAt: Date;
+}
+export declare enum SubscriptionStatus {
+    SUBSCRIBED = "subscribed",
+    UNSUBSCRIBED = "unsubscribed",
+    BOUNCED = "bounced",
+    COMPLAINED = "complained"
+}
+export interface ApiResponse<T = any> {
+    success: boolean;
+    data?: T;
+    error?: {
+        code: string;
+        message: string;
+        details?: Record<string, any>;
+    };
+    meta?: {
+        page?: number;
+        limit?: number;
+        total?: number;
+    };
+}
+export interface Subscription {
+    id: string;
+    tenantId: string;
+    planId: string;
+    status: SubscriptionStatus;
+    currentPeriodStart: Date;
+    currentPeriodEnd: Date;
+    usage: UsageMetrics;
+    limits: TierLimits;
+    rechargeBalance: number;
+}
+export interface UsageMetrics {
+    dailyEmailsSent: number;
+    monthlyEmailsSent: number;
+    uniqueRecipients: number;
+    templatesCreated: number;
+    customDomainsUsed: number;
+    lastResetDate: Date;
+}
+export interface TierLimits {
+    dailyEmailLimit: number;
+    monthlyRecipientLimit: number;
+    monthlyEmailLimit: number;
+    templateLimit: number;
+    customDomainLimit: number;
+    hasLogoCustomization: boolean;
+    hasCustomDomains: boolean;
+    hasAdvancedAnalytics: boolean;
+}
+//# sourceMappingURL=index.d.ts.map

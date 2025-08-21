@@ -1,0 +1,162 @@
+# Media Optimization Service for CDN
+# This service handles image/video optimization and serves optimized content
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: media-optimization-service
+  namespace: bulk-email-platform
+  labels:
+    app: media-optimization
+    component: cdn
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: media-optimization
+  template:
+    metadata:
+      labels:
+        app: media-optimization
+    spec:
+      containers:
+      - name: media-optimizer
+        image: perbox/media-optimizer:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: email-service-credentials
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: email-service-credentials
+              key: aws-secret-access-key
+        - name: S3_BUCKET
+          value: "perbox-media-assets"
+        - name: CDN_URL
+          value: "https://cdn.perbox.com"
+        - name: REDIS_URL
+          value: "redis://redis-cluster-service:6379"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: temp-storage
+          mountPath: /tmp/media-processing
+      volumes:
+      - name: temp-storage
+        emptyDir:
+          sizeLimit: 1Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: media-optimization-service
+  namespace: bulk-email-platform
+  labels:
+    app: media-optimization
+spec:
+  selector:
+    app: media-optimization
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: media-optimization-config
+  namespace: bulk-email-platform
+data:
+  config.json: |
+    {
+      "imageOptimization": {
+        "formats": ["webp", "avif", "jpeg", "png"],
+        "quality": {
+          "webp": 85,
+          "avif": 80,
+          "jpeg": 85,
+          "png": 95
+        },
+        "sizes": [320, 640, 768, 1024, 1280, 1920],
+        "maxFileSize": 10485760,
+        "enableProgressive": true
+      },
+      "videoOptimization": {
+        "formats": ["mp4", "webm"],
+        "quality": {
+          "mp4": "medium",
+          "webm": "medium"
+        },
+        "resolutions": ["480p", "720p", "1080p"],
+        "maxFileSize": 104857600,
+        "enableAdaptiveStreaming": true
+      },
+      "caching": {
+        "ttl": 86400,
+        "maxCacheSize": "1GB",
+        "enableCompression": true
+      },
+      "security": {
+        "allowedOrigins": ["https://perbox.com", "https://admin.perbox.com"],
+        "enableHotlinkProtection": true,
+        "signedUrls": true,
+        "signedUrlExpiry": 3600
+      }
+    }
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: media-optimization-ingress
+  namespace: bulk-email-platform
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - media.perbox.com
+    secretName: media-perbox-tls
+  rules:
+  - host: media.perbox.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: media-optimization-service
+            port:
+              number: 80

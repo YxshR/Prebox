@@ -1,0 +1,886 @@
+# Security Migration Scripts ConfigMaps
+# Contains all SQL migration scripts for enhanced security features
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-migration-scripts
+  namespace: bulk-email-platform
+data:
+  001_enhanced_users_table.sql: |
+    -- Enhanced Users Table Migration
+    -- Adds per-user JWT secrets and security fields
+    
+    BEGIN;
+    
+    -- Add new columns to users table
+    ALTER TABLE users 
+    ADD COLUMN IF NOT EXISTS jwt_secret VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS jwt_refresh_secret VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS security_level INTEGER DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS last_security_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS last_failed_login TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS account_locked_until TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS security_flags JSONB DEFAULT '{}';
+    
+    -- Create function to generate secure random strings
+    CREATE OR REPLACE FUNCTION generate_jwt_secret() RETURNS VARCHAR(255) AS $$
+    BEGIN
+        RETURN encode(gen_random_bytes(32), 'base64');
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Update existing users with JWT secrets
+    UPDATE users 
+    SET jwt_secret = generate_jwt_secret(),
+        jwt_refresh_secret = generate_jwt_secret()
+    WHERE jwt_secret IS NULL OR jwt_refresh_secret IS NULL;
+    
+    -- Make JWT secrets NOT NULL
+    ALTER TABLE users 
+    ALTER COLUMN jwt_secret SET NOT NULL,
+    ALTER COLUMN jwt_refresh_secret SET NOT NULL;
+    
+    -- Add constraints
+    ALTER TABLE users 
+    ADD CONSTRAINT users_jwt_secret_length CHECK (length(jwt_secret) >= 32),
+    ADD CONSTRAINT users_jwt_refresh_secret_length CHECK (length(jwt_refresh_secret) >= 32),
+    ADD CONSTRAINT users_security_level_valid CHECK (security_level BETWEEN 1 AND 5);
+    
+    COMMIT;
+
+  002_per_user_jwt_secrets.sql: |
+    -- Per-User JWT Secrets Management
+    -- Creates table and functions for managing individual JWT secrets
+    
+    BEGIN;
+    
+    -- Create JWT secrets rotation log table
+    CREATE TABLE IF NOT EXISTS jwt_secret_rotations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        old_secret_hash VARCHAR(255),
+        new_secret_hash VARCHAR(255),
+        rotation_reason VARCHAR(100),
+        rotated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        rotated_by UUID REFERENCES users(id)
+    );
+    
+    -- Create function to rotate JWT secrets
+    CREATE OR REPLACE FUNCTION rotate_user_jwt_secrets(
+        p_user_id UUID,
+        p_reason VARCHAR(100) DEFAULT 'manual_rotation'
+    ) RETURNS BOOLEAN AS $$
+    DECLARE
+        old_secret VARCHAR(255);
+        old_refresh_secret VARCHAR(255);
+        new_secret VARCHAR(255);
+        new_refresh_secret VARCHAR(255);
+    BEGIN
+        -- Get current secrets
+        SELECT jwt_secret, jwt_refresh_secret 
+        INTO old_secret, old_refresh_secret
+        FROM users WHERE id = p_user_id;
+        
+        -- Generate new secrets
+        new_secret := generate_jwt_secret();
+        new_refresh_secret := generate_jwt_secret();
+        
+        -- Update user with new secrets
+        UPDATE users 
+        SET jwt_secret = new_secret,
+            jwt_refresh_secret = new_refresh_secret,
+            last_security_update = CURRENT_TIMESTAMP
+        WHERE id = p_user_id;
+        
+        -- Log the rotation
+        INSERT INTO jwt_secret_rotations (
+            user_id, 
+            old_secret_hash, 
+            new_secret_hash, 
+            rotation_reason
+        ) VALUES (
+            p_user_id,
+            encode(sha256(old_secret::bytea), 'hex'),
+            encode(sha256(new_secret::bytea), 'hex'),
+            p_reason
+        );
+        
+        RETURN TRUE;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Create index for performance
+    CREATE INDEX IF NOT EXISTS idx_jwt_rotations_user_id ON jwt_secret_rotations(user_id);
+    CREATE INDEX IF NOT EXISTS idx_jwt_rotations_rotated_at ON jwt_secret_rotations(rotated_at);
+    
+    COMMIT;
+
+  003_enhanced_otp_table.sql: |
+    -- Enhanced OTP Table Migration
+    -- Adds security features and rate limiting to OTP system
+    
+    BEGIN;
+    
+    -- Drop existing OTP table if it exists (backup data first if needed)
+    DROP TABLE IF EXISTS otp_verifications CASCADE;
+    
+    -- Create enhanced OTP table
+    CREATE TABLE otp_verifications (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        phone_number VARCHAR(20) NOT NULL,
+        otp_code VARCHAR(6) NOT NULL,
+        otp_hash VARCHAR(255) NOT NULL, -- Hashed OTP for security
+        expires_at TIMESTAMP NOT NULL,
+        attempts INTEGER DEFAULT 0,
+        max_attempts INTEGER DEFAULT 3,
+        is_used BOOLEAN DEFAULT FALSE,
+        is_blocked BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        used_at TIMESTAMP,
+        ip_address INET,
+        user_agent TEXT,
+        session_id VARCHAR(255),
+        verification_type VARCHAR(50) DEFAULT 'phone_signup',
+        security_flags JSONB DEFAULT '{}'
+    );
+    
+    -- Create OTP rate limiting table
+    CREATE TABLE otp_rate_limits (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        identifier VARCHAR(255) NOT NULL, -- phone number or IP
+        identifier_type VARCHAR(20) NOT NULL, -- 'phone' or 'ip'
+        request_count INTEGER DEFAULT 1,
+        window_start TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        window_duration INTERVAL DEFAULT '15 minutes',
+        is_blocked BOOLEAN DEFAULT FALSE,
+        blocked_until TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    -- Create function to generate secure OTP
+    CREATE OR REPLACE FUNCTION generate_secure_otp() RETURNS VARCHAR(6) AS $$
+    BEGIN
+        RETURN lpad((random() * 999999)::integer::text, 6, '0');
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Create function to hash OTP
+    CREATE OR REPLACE FUNCTION hash_otp(otp_code VARCHAR(6)) RETURNS VARCHAR(255) AS $$
+    BEGIN
+        RETURN encode(sha256((otp_code || current_setting('app.otp_salt', true))::bytea), 'hex');
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Create function to check rate limits
+    CREATE OR REPLACE FUNCTION check_otp_rate_limit(
+        p_identifier VARCHAR(255),
+        p_identifier_type VARCHAR(20),
+        p_max_requests INTEGER DEFAULT 5
+    ) RETURNS BOOLEAN AS $$
+    DECLARE
+        current_count INTEGER;
+        window_start TIMESTAMP;
+    BEGIN
+        -- Clean up old rate limit records
+        DELETE FROM otp_rate_limits 
+        WHERE window_start < (CURRENT_TIMESTAMP - window_duration);
+        
+        -- Get current count for identifier
+        SELECT request_count, window_start 
+        INTO current_count, window_start
+        FROM otp_rate_limits 
+        WHERE identifier = p_identifier 
+        AND identifier_type = p_identifier_type
+        AND window_start > (CURRENT_TIMESTAMP - INTERVAL '15 minutes');
+        
+        -- If no record exists, create one
+        IF current_count IS NULL THEN
+            INSERT INTO otp_rate_limits (identifier, identifier_type, request_count)
+            VALUES (p_identifier, p_identifier_type, 1);
+            RETURN TRUE;
+        END IF;
+        
+        -- Check if limit exceeded
+        IF current_count >= p_max_requests THEN
+            -- Update blocked status
+            UPDATE otp_rate_limits 
+            SET is_blocked = TRUE,
+                blocked_until = CURRENT_TIMESTAMP + INTERVAL '1 hour'
+            WHERE identifier = p_identifier AND identifier_type = p_identifier_type;
+            RETURN FALSE;
+        END IF;
+        
+        -- Increment count
+        UPDATE otp_rate_limits 
+        SET request_count = request_count + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE identifier = p_identifier AND identifier_type = p_identifier_type;
+        
+        RETURN TRUE;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Create indexes for performance
+    CREATE INDEX idx_otp_phone_number ON otp_verifications(phone_number);
+    CREATE INDEX idx_otp_expires_at ON otp_verifications(expires_at);
+    CREATE INDEX idx_otp_created_at ON otp_verifications(created_at);
+    CREATE INDEX idx_otp_is_used ON otp_verifications(is_used);
+    CREATE INDEX idx_otp_rate_limits_identifier ON otp_rate_limits(identifier, identifier_type);
+    CREATE INDEX idx_otp_rate_limits_window ON otp_rate_limits(window_start);
+    
+    COMMIT;
+
+  004_secure_pricing_table.sql: |
+    -- Secure Pricing Table Migration
+    -- Creates JWT-protected pricing system
+    
+    BEGIN;
+    
+    -- Create secure pricing table
+    CREATE TABLE IF NOT EXISTS secure_pricing (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        plan_id VARCHAR(50) UNIQUE NOT NULL,
+        plan_name VARCHAR(100) NOT NULL,
+        plan_description TEXT,
+        price_amount DECIMAL(10,2) NOT NULL,
+        currency VARCHAR(3) DEFAULT 'INR',
+        billing_cycle VARCHAR(20) DEFAULT 'monthly', -- monthly, yearly, one-time
+        features JSONB NOT NULL DEFAULT '[]',
+        limits JSONB DEFAULT '{}',
+        jwt_signature TEXT NOT NULL,
+        is_active BOOLEAN DEFAULT TRUE,
+        is_featured BOOLEAN DEFAULT FALSE,
+        display_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_by UUID REFERENCES users(id),
+        updated_by UUID REFERENCES users(id)
+    );
+    
+    -- Create pricing audit log table
+    CREATE TABLE pricing_audit_log (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        plan_id VARCHAR(50) NOT NULL,
+        action VARCHAR(50) NOT NULL, -- 'view', 'purchase_attempt', 'validation_failure'
+        user_id UUID REFERENCES users(id),
+        ip_address INET,
+        user_agent TEXT,
+        request_data JSONB,
+        validation_result JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        session_id VARCHAR(255)
+    );
+    
+    -- Create function to sign pricing data
+    CREATE OR REPLACE FUNCTION sign_pricing_data(
+        p_plan_id VARCHAR(50),
+        p_price_amount DECIMAL(10,2),
+        p_features JSONB
+    ) RETURNS TEXT AS $$
+    DECLARE
+        payload TEXT;
+        secret TEXT;
+    BEGIN
+        -- Get pricing JWT secret from configuration
+        secret := current_setting('app.pricing_jwt_secret', true);
+        
+        -- Create payload
+        payload := p_plan_id || '|' || p_price_amount::text || '|' || p_features::text;
+        
+        -- Return HMAC signature (simplified - in production use proper JWT library)
+        RETURN encode(hmac(payload, secret, 'sha256'), 'hex');
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Create function to validate pricing signature
+    CREATE OR REPLACE FUNCTION validate_pricing_signature(
+        p_plan_id VARCHAR(50),
+        p_price_amount DECIMAL(10,2),
+        p_features JSONB,
+        p_signature TEXT
+    ) RETURNS BOOLEAN AS $$
+    DECLARE
+        expected_signature TEXT;
+    BEGIN
+        expected_signature := sign_pricing_data(p_plan_id, p_price_amount, p_features);
+        RETURN p_signature = expected_signature;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Create trigger to auto-sign pricing data
+    CREATE OR REPLACE FUNCTION auto_sign_pricing() RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.jwt_signature := sign_pricing_data(NEW.plan_id, NEW.price_amount, NEW.features);
+        NEW.updated_at := CURRENT_TIMESTAMP;
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    CREATE TRIGGER trigger_auto_sign_pricing
+        BEFORE INSERT OR UPDATE ON secure_pricing
+        FOR EACH ROW EXECUTE FUNCTION auto_sign_pricing();
+    
+    -- Create indexes
+    CREATE INDEX idx_secure_pricing_plan_id ON secure_pricing(plan_id);
+    CREATE INDEX idx_secure_pricing_active ON secure_pricing(is_active);
+    CREATE INDEX idx_secure_pricing_featured ON secure_pricing(is_featured);
+    CREATE INDEX idx_pricing_audit_plan_id ON pricing_audit_log(plan_id);
+    CREATE INDEX idx_pricing_audit_user_id ON pricing_audit_log(user_id);
+    CREATE INDEX idx_pricing_audit_created_at ON pricing_audit_log(created_at);
+    
+    COMMIT;
+
+  005_security_audit_log.sql: |
+    -- Security Audit Log Table Migration
+    -- Creates comprehensive security event logging
+    
+    BEGIN;
+    
+    -- Create security audit log table
+    CREATE TABLE IF NOT EXISTS security_audit_log (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_type VARCHAR(50) NOT NULL,
+        event_category VARCHAR(50) NOT NULL,
+        user_id UUID REFERENCES users(id),
+        session_id VARCHAR(255),
+        ip_address INET,
+        user_agent TEXT,
+        event_data JSONB DEFAULT '{}',
+        risk_score INTEGER DEFAULT 0,
+        is_suspicious BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        processed_at TIMESTAMP,
+        alert_sent BOOLEAN DEFAULT FALSE
+    );
+    
+    -- Create security metrics table
+    CREATE TABLE security_metrics (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        metric_name VARCHAR(100) NOT NULL,
+        metric_value DECIMAL(10,2) NOT NULL,
+        metric_unit VARCHAR(20),
+        time_window INTERVAL,
+        recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        metadata JSONB DEFAULT '{}'
+    );
+    
+    -- Create function to log security events
+    CREATE OR REPLACE FUNCTION log_security_event(
+        p_event_type VARCHAR(50),
+        p_event_category VARCHAR(50),
+        p_user_id UUID DEFAULT NULL,
+        p_session_id VARCHAR(255) DEFAULT NULL,
+        p_ip_address INET DEFAULT NULL,
+        p_user_agent TEXT DEFAULT NULL,
+        p_event_data JSONB DEFAULT '{}',
+        p_risk_score INTEGER DEFAULT 0
+    ) RETURNS UUID AS $$
+    DECLARE
+        event_id UUID;
+        is_suspicious BOOLEAN DEFAULT FALSE;
+    BEGIN
+        -- Determine if event is suspicious based on risk score
+        IF p_risk_score > 70 THEN
+            is_suspicious := TRUE;
+        END IF;
+        
+        -- Insert audit log entry
+        INSERT INTO security_audit_log (
+            event_type,
+            event_category,
+            user_id,
+            session_id,
+            ip_address,
+            user_agent,
+            event_data,
+            risk_score,
+            is_suspicious
+        ) VALUES (
+            p_event_type,
+            p_event_category,
+            p_user_id,
+            p_session_id,
+            p_ip_address,
+            p_user_agent,
+            p_event_data,
+            p_risk_score,
+            is_suspicious
+        ) RETURNING id INTO event_id;
+        
+        -- Update security metrics
+        INSERT INTO security_metrics (metric_name, metric_value, metric_unit)
+        VALUES (p_event_type || '_count', 1, 'count')
+        ON CONFLICT (metric_name) DO UPDATE 
+        SET metric_value = security_metrics.metric_value + 1,
+            recorded_at = CURRENT_TIMESTAMP;
+        
+        RETURN event_id;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Create function to calculate risk scores
+    CREATE OR REPLACE FUNCTION calculate_risk_score(
+        p_event_type VARCHAR(50),
+        p_user_id UUID,
+        p_ip_address INET
+    ) RETURNS INTEGER AS $$
+    DECLARE
+        risk_score INTEGER := 0;
+        recent_failures INTEGER;
+        ip_reputation INTEGER;
+    BEGIN
+        -- Base risk scores by event type
+        CASE p_event_type
+            WHEN 'failed_login' THEN risk_score := 20;
+            WHEN 'otp_failure' THEN risk_score := 15;
+            WHEN 'pricing_tampering' THEN risk_score := 80;
+            WHEN 'jwt_manipulation' THEN risk_score := 60;
+            WHEN 'unauthorized_access' THEN risk_score := 90;
+            ELSE risk_score := 10;
+        END CASE;
+        
+        -- Increase risk for repeated failures
+        SELECT COUNT(*) INTO recent_failures
+        FROM security_audit_log
+        WHERE user_id = p_user_id
+        AND event_type LIKE '%failure%'
+        AND created_at > CURRENT_TIMESTAMP - INTERVAL '1 hour';
+        
+        risk_score := risk_score + (recent_failures * 10);
+        
+        -- Check IP reputation (simplified)
+        SELECT COUNT(*) INTO ip_reputation
+        FROM security_audit_log
+        WHERE ip_address = p_ip_address
+        AND is_suspicious = TRUE
+        AND created_at > CURRENT_TIMESTAMP - INTERVAL '24 hours';
+        
+        risk_score := risk_score + (ip_reputation * 5);
+        
+        -- Cap at 100
+        IF risk_score > 100 THEN
+            risk_score := 100;
+        END IF;
+        
+        RETURN risk_score;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Create indexes for performance
+    CREATE INDEX idx_security_audit_event_type ON security_audit_log(event_type);
+    CREATE INDEX idx_security_audit_user_id ON security_audit_log(user_id);
+    CREATE INDEX idx_security_audit_ip_address ON security_audit_log(ip_address);
+    CREATE INDEX idx_security_audit_created_at ON security_audit_log(created_at);
+    CREATE INDEX idx_security_audit_suspicious ON security_audit_log(is_suspicious);
+    CREATE INDEX idx_security_metrics_name ON security_metrics(metric_name);
+    CREATE INDEX idx_security_metrics_recorded_at ON security_metrics(recorded_at);
+    
+    COMMIT;
+
+  006_media_assets_table.sql: |
+    -- Media Assets Table Migration
+    -- Creates table for managing multimedia content with CDN integration
+    
+    BEGIN;
+    
+    -- Create media assets table
+    CREATE TABLE IF NOT EXISTS media_assets (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        asset_type VARCHAR(20) NOT NULL CHECK (asset_type IN ('image', 'video', 'animation', 'document')),
+        file_name VARCHAR(255) NOT NULL,
+        file_path VARCHAR(500) NOT NULL,
+        file_size BIGINT,
+        mime_type VARCHAR(100),
+        alt_text VARCHAR(255),
+        title VARCHAR(255),
+        description TEXT,
+        section VARCHAR(50) NOT NULL, -- 'hero', 'features', 'pricing', 'testimonials'
+        display_order INTEGER DEFAULT 0,
+        is_active BOOLEAN DEFAULT TRUE,
+        is_optimized BOOLEAN DEFAULT FALSE,
+        cdn_url VARCHAR(500),
+        original_url VARCHAR(500),
+        optimization_data JSONB DEFAULT '{}',
+        metadata JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_by UUID REFERENCES users(id),
+        updated_by UUID REFERENCES users(id)
+    );
+    
+    -- Create media optimization queue table
+    CREATE TABLE media_optimization_queue (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        media_asset_id UUID NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+        optimization_type VARCHAR(50) NOT NULL, -- 'resize', 'compress', 'format_convert'
+        optimization_params JSONB DEFAULT '{}',
+        status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed'
+        priority INTEGER DEFAULT 5,
+        attempts INTEGER DEFAULT 0,
+        max_attempts INTEGER DEFAULT 3,
+        error_message TEXT,
+        started_at TIMESTAMP,
+        completed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    -- Create function to generate CDN URL
+    CREATE OR REPLACE FUNCTION generate_cdn_url(
+        p_file_path VARCHAR(500),
+        p_asset_type VARCHAR(20)
+    ) RETURNS VARCHAR(500) AS $$
+    DECLARE
+        cdn_base_url VARCHAR(255);
+    BEGIN
+        -- Get CDN base URL from configuration
+        cdn_base_url := current_setting('app.cdn_base_url', true);
+        
+        -- Return full CDN URL
+        RETURN cdn_base_url || '/' || p_asset_type || 's/' || p_file_path;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Create trigger to auto-generate CDN URLs
+    CREATE OR REPLACE FUNCTION auto_generate_cdn_url() RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.cdn_url := generate_cdn_url(NEW.file_path, NEW.asset_type);
+        NEW.updated_at := CURRENT_TIMESTAMP;
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    CREATE TRIGGER trigger_auto_generate_cdn_url
+        BEFORE INSERT OR UPDATE ON media_assets
+        FOR EACH ROW EXECUTE FUNCTION auto_generate_cdn_url();
+    
+    -- Create function to queue media optimization
+    CREATE OR REPLACE FUNCTION queue_media_optimization(
+        p_media_asset_id UUID,
+        p_optimization_type VARCHAR(50),
+        p_optimization_params JSONB DEFAULT '{}',
+        p_priority INTEGER DEFAULT 5
+    ) RETURNS UUID AS $$
+    DECLARE
+        queue_id UUID;
+    BEGIN
+        INSERT INTO media_optimization_queue (
+            media_asset_id,
+            optimization_type,
+            optimization_params,
+            priority
+        ) VALUES (
+            p_media_asset_id,
+            p_optimization_type,
+            p_optimization_params,
+            p_priority
+        ) RETURNING id INTO queue_id;
+        
+        RETURN queue_id;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Create indexes for performance
+    CREATE INDEX idx_media_assets_type ON media_assets(asset_type);
+    CREATE INDEX idx_media_assets_section ON media_assets(section);
+    CREATE INDEX idx_media_assets_active ON media_assets(is_active);
+    CREATE INDEX idx_media_assets_display_order ON media_assets(section, display_order);
+    CREATE INDEX idx_media_optimization_status ON media_optimization_queue(status);
+    CREATE INDEX idx_media_optimization_priority ON media_optimization_queue(priority DESC);
+    CREATE INDEX idx_media_optimization_created_at ON media_optimization_queue(created_at);
+    
+    COMMIT;
+
+  007_security_indexes.sql: |
+    -- Security Indexes Migration
+    -- Creates optimized indexes for security-related queries
+    
+    BEGIN;
+    
+    -- Users table security indexes
+    CREATE INDEX IF NOT EXISTS idx_users_phone_number ON users(phone_number);
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_users_is_verified ON users(is_verified);
+    CREATE INDEX IF NOT EXISTS idx_users_failed_login_attempts ON users(failed_login_attempts);
+    CREATE INDEX IF NOT EXISTS idx_users_account_locked_until ON users(account_locked_until);
+    CREATE INDEX IF NOT EXISTS idx_users_last_security_update ON users(last_security_update);
+    CREATE INDEX IF NOT EXISTS idx_users_security_level ON users(security_level);
+    
+    -- Composite indexes for common security queries
+    CREATE INDEX IF NOT EXISTS idx_users_phone_verified ON users(phone_number, is_verified);
+    CREATE INDEX IF NOT EXISTS idx_users_security_status ON users(failed_login_attempts, account_locked_until);
+    
+    -- OTP verifications security indexes
+    CREATE INDEX IF NOT EXISTS idx_otp_phone_expires ON otp_verifications(phone_number, expires_at);
+    CREATE INDEX IF NOT EXISTS idx_otp_phone_used ON otp_verifications(phone_number, is_used);
+    CREATE INDEX IF NOT EXISTS idx_otp_ip_address ON otp_verifications(ip_address);
+    CREATE INDEX IF NOT EXISTS idx_otp_session_id ON otp_verifications(session_id);
+    CREATE INDEX IF NOT EXISTS idx_otp_verification_type ON otp_verifications(verification_type);
+    CREATE INDEX IF NOT EXISTS idx_otp_blocked ON otp_verifications(is_blocked);
+    
+    -- OTP rate limits indexes
+    CREATE INDEX IF NOT EXISTS idx_otp_rate_limits_blocked ON otp_rate_limits(is_blocked, blocked_until);
+    CREATE INDEX IF NOT EXISTS idx_otp_rate_limits_window_active ON otp_rate_limits(window_start, window_duration);
+    
+    -- JWT secret rotations indexes
+    CREATE INDEX IF NOT EXISTS idx_jwt_rotations_user_reason ON jwt_secret_rotations(user_id, rotation_reason);
+    CREATE INDEX IF NOT EXISTS idx_jwt_rotations_recent ON jwt_secret_rotations(rotated_at DESC);
+    
+    -- Secure pricing indexes
+    CREATE INDEX IF NOT EXISTS idx_secure_pricing_active_featured ON secure_pricing(is_active, is_featured);
+    CREATE INDEX IF NOT EXISTS idx_secure_pricing_currency_cycle ON secure_pricing(currency, billing_cycle);
+    CREATE INDEX IF NOT EXISTS idx_secure_pricing_updated_at ON secure_pricing(updated_at);
+    
+    -- Pricing audit log indexes
+    CREATE INDEX IF NOT EXISTS idx_pricing_audit_action ON pricing_audit_log(action);
+    CREATE INDEX IF NOT EXISTS idx_pricing_audit_ip_address ON pricing_audit_log(ip_address);
+    CREATE INDEX IF NOT EXISTS idx_pricing_audit_session_id ON pricing_audit_log(session_id);
+    CREATE INDEX IF NOT EXISTS idx_pricing_audit_user_action ON pricing_audit_log(user_id, action);
+    
+    -- Security audit log indexes
+    CREATE INDEX IF NOT EXISTS idx_security_audit_category ON security_audit_log(event_category);
+    CREATE INDEX IF NOT EXISTS idx_security_audit_risk_score ON security_audit_log(risk_score);
+    CREATE INDEX IF NOT EXISTS idx_security_audit_processed ON security_audit_log(processed_at);
+    CREATE INDEX IF NOT EXISTS idx_security_audit_alert_sent ON security_audit_log(alert_sent);
+    CREATE INDEX IF NOT EXISTS idx_security_audit_user_category ON security_audit_log(user_id, event_category);
+    CREATE INDEX IF NOT EXISTS idx_security_audit_ip_suspicious ON security_audit_log(ip_address, is_suspicious);
+    
+    -- Security metrics indexes
+    CREATE INDEX IF NOT EXISTS idx_security_metrics_time_window ON security_metrics(recorded_at, time_window);
+    CREATE INDEX IF NOT EXISTS idx_security_metrics_name_recorded ON security_metrics(metric_name, recorded_at);
+    
+    -- Media assets indexes
+    CREATE INDEX IF NOT EXISTS idx_media_assets_cdn_url ON media_assets(cdn_url);
+    CREATE INDEX IF NOT EXISTS idx_media_assets_file_path ON media_assets(file_path);
+    CREATE INDEX IF NOT EXISTS idx_media_assets_optimized ON media_assets(is_optimized);
+    CREATE INDEX IF NOT EXISTS idx_media_assets_size ON media_assets(file_size);
+    CREATE INDEX IF NOT EXISTS idx_media_assets_mime_type ON media_assets(mime_type);
+    
+    -- Media optimization queue indexes
+    CREATE INDEX IF NOT EXISTS idx_media_queue_asset_status ON media_optimization_queue(media_asset_id, status);
+    CREATE INDEX IF NOT EXISTS idx_media_queue_priority_created ON media_optimization_queue(priority DESC, created_at);
+    CREATE INDEX IF NOT EXISTS idx_media_queue_attempts ON media_optimization_queue(attempts, max_attempts);
+    
+    -- Partial indexes for better performance on common queries
+    CREATE INDEX IF NOT EXISTS idx_users_active_verified ON users(id) WHERE is_verified = true;
+    CREATE INDEX IF NOT EXISTS idx_otp_active_unused ON otp_verifications(phone_number, expires_at) WHERE is_used = false AND is_blocked = false;
+    CREATE INDEX IF NOT EXISTS idx_pricing_active_plans ON secure_pricing(plan_id, price_amount) WHERE is_active = true;
+    CREATE INDEX IF NOT EXISTS idx_security_suspicious_events ON security_audit_log(created_at, event_type) WHERE is_suspicious = true;
+    CREATE INDEX IF NOT EXISTS idx_media_active_assets ON media_assets(section, display_order) WHERE is_active = true;
+    
+    -- Expression indexes for complex queries
+    CREATE INDEX IF NOT EXISTS idx_users_phone_normalized ON users(LOWER(TRIM(phone_number)));
+    CREATE INDEX IF NOT EXISTS idx_security_audit_recent_hour ON security_audit_log(user_id, event_type) WHERE created_at > (CURRENT_TIMESTAMP - INTERVAL '1 hour');
+    CREATE INDEX IF NOT EXISTS idx_otp_recent_attempts ON otp_verifications(phone_number) WHERE created_at > (CURRENT_TIMESTAMP - INTERVAL '15 minutes');
+    
+    COMMIT;
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-seed-scripts
+  namespace: bulk-email-platform
+data:
+  secure_pricing_seed.sql: |
+    -- Secure Pricing Data Seed
+    -- Inserts initial pricing plans with JWT protection
+    
+    BEGIN;
+    
+    -- Set pricing JWT secret for signing
+    SET app.pricing_jwt_secret = '${PRICING_JWT_SECRET}';
+    
+    -- Insert basic pricing plans
+    INSERT INTO secure_pricing (
+        plan_id, plan_name, plan_description, price_amount, currency, billing_cycle, features, limits
+    ) VALUES 
+    (
+        'starter',
+        'Starter Plan',
+        'Perfect for individuals and small projects',
+        999.00,
+        'INR',
+        'monthly',
+        '["Phone verification", "Basic templates", "Email support", "5GB storage"]',
+        '{"emails_per_month": 10000, "contacts": 1000, "templates": 10}'
+    ),
+    (
+        'professional',
+        'Professional Plan',
+        'Ideal for growing businesses',
+        2999.00,
+        'INR',
+        'monthly',
+        '["Everything in Starter", "Advanced templates", "Priority support", "50GB storage", "Custom domains"]',
+        '{"emails_per_month": 50000, "contacts": 10000, "templates": 50, "custom_domains": 3}'
+    ),
+    (
+        'enterprise',
+        'Enterprise Plan',
+        'For large organizations with advanced needs',
+        9999.00,
+        'INR',
+        'monthly',
+        '["Everything in Professional", "Unlimited templates", "24/7 support", "500GB storage", "White-label", "API access"]',
+        '{"emails_per_month": 500000, "contacts": 100000, "templates": -1, "custom_domains": -1}'
+    )
+    ON CONFLICT (plan_id) DO UPDATE SET
+        plan_name = EXCLUDED.plan_name,
+        plan_description = EXCLUDED.plan_description,
+        price_amount = EXCLUDED.price_amount,
+        features = EXCLUDED.features,
+        limits = EXCLUDED.limits,
+        updated_at = CURRENT_TIMESTAMP;
+    
+    -- Mark professional plan as featured
+    UPDATE secure_pricing SET is_featured = true WHERE plan_id = 'professional';
+    
+    COMMIT;
+
+  media_assets_seed.sql: |
+    -- Media Assets Data Seed
+    -- Inserts initial media assets for home page redesign
+    
+    BEGIN;
+    
+    -- Set CDN base URL
+    SET app.cdn_base_url = 'https://cdn.perbox.com';
+    
+    -- Insert hero section media assets
+    INSERT INTO media_assets (
+        asset_type, file_name, file_path, alt_text, title, section, display_order, metadata
+    ) VALUES 
+    (
+        'video',
+        'hero-background.mp4',
+        'hero/hero-background.mp4',
+        'Perbox platform demonstration video',
+        'Hero Background Video',
+        'hero',
+        1,
+        '{"duration": 30, "resolution": "1920x1080", "format": "mp4"}'
+    ),
+    (
+        'image',
+        'hero-fallback.webp',
+        'hero/hero-fallback.webp',
+        'Perbox platform interface preview',
+        'Hero Fallback Image',
+        'hero',
+        2,
+        '{"width": 1920, "height": 1080, "format": "webp"}'
+    ),
+    (
+        'image',
+        'feature-dashboard.webp',
+        'features/dashboard-preview.webp',
+        'Perbox dashboard interface',
+        'Dashboard Feature',
+        'features',
+        1,
+        '{"width": 800, "height": 600, "format": "webp"}'
+    ),
+    (
+        'image',
+        'feature-analytics.webp',
+        'features/analytics-preview.webp',
+        'Email analytics and reporting',
+        'Analytics Feature',
+        'features',
+        2,
+        '{"width": 800, "height": 600, "format": "webp"}'
+    ),
+    (
+        'video',
+        'feature-demo.mp4',
+        'features/feature-demo.mp4',
+        'Feature demonstration video',
+        'Feature Demo Video',
+        'features',
+        3,
+        '{"duration": 45, "resolution": "1280x720", "format": "mp4"}'
+    ),
+    (
+        'image',
+        'pricing-background.webp',
+        'pricing/pricing-bg.webp',
+        'Pricing section background',
+        'Pricing Background',
+        'pricing',
+        1,
+        '{"width": 1200, "height": 400, "format": "webp"}'
+    )
+    ON CONFLICT (file_path) DO UPDATE SET
+        alt_text = EXCLUDED.alt_text,
+        title = EXCLUDED.title,
+        metadata = EXCLUDED.metadata,
+        updated_at = CURRENT_TIMESTAMP;
+    
+    -- Queue optimization for all media assets
+    INSERT INTO media_optimization_queue (media_asset_id, optimization_type, optimization_params, priority)
+    SELECT 
+        id,
+        CASE 
+            WHEN asset_type = 'image' THEN 'compress'
+            WHEN asset_type = 'video' THEN 'transcode'
+            ELSE 'optimize'
+        END,
+        CASE 
+            WHEN asset_type = 'image' THEN '{"quality": 85, "formats": ["webp", "avif"]}'
+            WHEN asset_type = 'video' THEN '{"quality": "medium", "formats": ["mp4", "webm"]}'
+            ELSE '{}'
+        END,
+        CASE 
+            WHEN section = 'hero' THEN 1
+            WHEN section = 'features' THEN 2
+            ELSE 3
+        END
+    FROM media_assets
+    WHERE is_optimized = false;
+    
+    COMMIT;
+
+  generate_user_jwt_secrets.sql: |
+    -- Generate JWT Secrets for Existing Users
+    -- Updates existing users with individual JWT secrets
+    
+    BEGIN;
+    
+    -- Update users without JWT secrets
+    UPDATE users 
+    SET 
+        jwt_secret = generate_jwt_secret(),
+        jwt_refresh_secret = generate_jwt_secret(),
+        last_security_update = CURRENT_TIMESTAMP
+    WHERE jwt_secret IS NULL OR jwt_refresh_secret IS NULL;
+    
+    -- Log the secret generation for audit purposes
+    INSERT INTO security_audit_log (
+        event_type,
+        event_category,
+        user_id,
+        event_data,
+        risk_score
+    )
+    SELECT 
+        'jwt_secret_generated',
+        'security_update',
+        id,
+        '{"reason": "initial_migration", "method": "batch_update"}',
+        0
+    FROM users
+    WHERE jwt_secret IS NOT NULL AND jwt_refresh_secret IS NOT NULL;
+    
+    -- Update security metrics
+    INSERT INTO security_metrics (metric_name, metric_value, metric_unit)
+    SELECT 
+        'users_with_jwt_secrets',
+        COUNT(*),
+        'count'
+    FROM users
+    WHERE jwt_secret IS NOT NULL AND jwt_refresh_secret IS NOT NULL;
+    
+    COMMIT;

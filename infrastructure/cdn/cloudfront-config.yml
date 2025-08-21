@@ -1,0 +1,240 @@
+# CloudFront CDN Configuration for Perbox Media Assets
+# This configuration optimizes delivery of images, videos, and static assets
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudfront-config
+  namespace: bulk-email-platform
+data:
+  cloudfront-distribution.json: |
+    {
+      "CallerReference": "perbox-cdn-2024",
+      "Comment": "Perbox Platform CDN for optimized media delivery",
+      "DefaultCacheBehavior": {
+        "TargetOriginId": "perbox-s3-origin",
+        "ViewerProtocolPolicy": "redirect-to-https",
+        "MinTTL": 0,
+        "ForwardedValues": {
+          "QueryString": false,
+          "Cookies": {
+            "Forward": "none"
+          },
+          "Headers": [
+            "Origin",
+            "Access-Control-Request-Headers",
+            "Access-Control-Request-Method"
+          ]
+        },
+        "TrustedSigners": {
+          "Enabled": false,
+          "Quantity": 0
+        },
+        "Compress": true,
+        "DefaultTTL": 86400,
+        "MaxTTL": 31536000
+      },
+      "Origins": [
+        {
+          "Id": "perbox-s3-origin",
+          "DomainName": "perbox-media-assets.s3.amazonaws.com",
+          "S3OriginConfig": {
+            "OriginAccessIdentity": "origin-access-identity/cloudfront/E1234567890123"
+          }
+        },
+        {
+          "Id": "perbox-api-origin",
+          "DomainName": "api.perbox.com",
+          "CustomOriginConfig": {
+            "HTTPPort": 443,
+            "HTTPSPort": 443,
+            "OriginProtocolPolicy": "https-only",
+            "OriginSslProtocols": {
+              "Quantity": 1,
+              "Items": ["TLSv1.2"]
+            }
+          }
+        }
+      ],
+      "CacheBehaviors": [
+        {
+          "PathPattern": "/api/*",
+          "TargetOriginId": "perbox-api-origin",
+          "ViewerProtocolPolicy": "https-only",
+          "MinTTL": 0,
+          "DefaultTTL": 0,
+          "MaxTTL": 0,
+          "ForwardedValues": {
+            "QueryString": true,
+            "Cookies": {
+              "Forward": "all"
+            },
+            "Headers": [
+              "Authorization",
+              "Content-Type",
+              "Origin",
+              "Referer",
+              "User-Agent"
+            ]
+          },
+          "Compress": true
+        },
+        {
+          "PathPattern": "/images/*",
+          "TargetOriginId": "perbox-s3-origin",
+          "ViewerProtocolPolicy": "redirect-to-https",
+          "MinTTL": 86400,
+          "DefaultTTL": 604800,
+          "MaxTTL": 31536000,
+          "ForwardedValues": {
+            "QueryString": true,
+            "Cookies": {
+              "Forward": "none"
+            }
+          },
+          "Compress": true
+        },
+        {
+          "PathPattern": "/videos/*",
+          "TargetOriginId": "perbox-s3-origin",
+          "ViewerProtocolPolicy": "redirect-to-https",
+          "MinTTL": 3600,
+          "DefaultTTL": 86400,
+          "MaxTTL": 31536000,
+          "ForwardedValues": {
+            "QueryString": true,
+            "Cookies": {
+              "Forward": "none"
+            }
+          },
+          "Compress": false
+        },
+        {
+          "PathPattern": "/assets/*",
+          "TargetOriginId": "perbox-s3-origin",
+          "ViewerProtocolPolicy": "redirect-to-https",
+          "MinTTL": 31536000,
+          "DefaultTTL": 31536000,
+          "MaxTTL": 31536000,
+          "ForwardedValues": {
+            "QueryString": false,
+            "Cookies": {
+              "Forward": "none"
+            }
+          },
+          "Compress": true
+        }
+      ],
+      "Enabled": true,
+      "PriceClass": "PriceClass_All",
+      "ViewerCertificate": {
+        "ACMCertificateArn": "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012",
+        "SSLSupportMethod": "sni-only",
+        "MinimumProtocolVersion": "TLSv1.2_2021"
+      },
+      "Aliases": [
+        "cdn.perbox.com",
+        "media.perbox.com"
+      ],
+      "CustomErrorResponses": [
+        {
+          "ErrorCode": 404,
+          "ResponsePagePath": "/404.html",
+          "ResponseCode": "404",
+          "ErrorCachingMinTTL": 300
+        },
+        {
+          "ErrorCode": 403,
+          "ResponsePagePath": "/403.html",
+          "ResponseCode": "403",
+          "ErrorCachingMinTTL": 300
+        }
+      ],
+      "WebACLId": "arn:aws:wafv2:us-east-1:123456789012:global/webacl/perbox-cdn-protection/12345678-1234-1234-1234-123456789012"
+    }
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cdn-setup-job
+  namespace: bulk-email-platform
+spec:
+  template:
+    spec:
+      containers:
+      - name: cdn-setup
+        image: amazon/aws-cli:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # Create CloudFront distribution
+          aws cloudfront create-distribution --distribution-config file:///config/cloudfront-distribution.json
+          
+          # Create Origin Access Identity
+          aws cloudfront create-origin-access-identity --origin-access-identity-config CallerReference=perbox-oai-2024,Comment="Perbox S3 Origin Access Identity"
+          
+          # Update S3 bucket policy for CloudFront access
+          aws s3api put-bucket-policy --bucket perbox-media-assets --policy file:///config/s3-bucket-policy.json
+          
+          # Create invalidation for initial deployment
+          aws cloudfront create-invalidation --distribution-id ${CLOUDFRONT_DISTRIBUTION_ID} --paths "/*"
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: email-service-credentials
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: email-service-credentials
+              key: aws-secret-access-key
+        - name: AWS_DEFAULT_REGION
+          value: "us-east-1"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config
+      volumes:
+      - name: config-volume
+        configMap:
+          name: cloudfront-config
+      restartPolicy: OnFailure
+  backoffLimit: 3
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s3-cdn-policy
+  namespace: bulk-email-platform
+data:
+  s3-bucket-policy.json: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "AllowCloudFrontAccess",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity E1234567890123"
+          },
+          "Action": "s3:GetObject",
+          "Resource": "arn:aws:s3:::perbox-media-assets/*"
+        },
+        {
+          "Sid": "AllowApplicationUpload",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::123456789012:role/perbox-application-role"
+          },
+          "Action": [
+            "s3:PutObject",
+            "s3:PutObjectAcl",
+            "s3:DeleteObject"
+          ],
+          "Resource": "arn:aws:s3:::perbox-media-assets/*"
+        }
+      ]
+    }

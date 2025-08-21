@@ -1,0 +1,392 @@
+# Security Monitoring and Alerting Configuration
+# This configuration sets up comprehensive security monitoring for the enhanced features
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-monitoring-config
+  namespace: bulk-email-platform
+data:
+  security-rules.yml: |
+    groups:
+    - name: security-alerts
+      rules:
+      # Authentication Security Alerts
+      - alert: HighFailedLoginAttempts
+        expr: increase(failed_login_attempts_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          category: authentication
+        annotations:
+          summary: "High number of failed login attempts detected"
+          description: "{{ $value }} failed login attempts in the last 5 minutes"
+          runbook_url: "https://docs.perbox.com/runbooks/security/failed-logins"
+
+      - alert: SuspiciousLoginPattern
+        expr: rate(login_attempts_total{status="success"}[1h]) > 100
+        for: 5m
+        labels:
+          severity: critical
+          category: authentication
+        annotations:
+          summary: "Suspicious login pattern detected"
+          description: "Unusually high login rate: {{ $value }} logins per second"
+          runbook_url: "https://docs.perbox.com/runbooks/security/suspicious-activity"
+
+      # OTP Security Alerts
+      - alert: OTPBruteForceAttempt
+        expr: increase(otp_validation_failures_total[5m]) > 20
+        for: 1m
+        labels:
+          severity: critical
+          category: otp_security
+        annotations:
+          summary: "Potential OTP brute force attack detected"
+          description: "{{ $value }} OTP validation failures in 5 minutes"
+          runbook_url: "https://docs.perbox.com/runbooks/security/otp-brute-force"
+
+      - alert: OTPGenerationSpike
+        expr: rate(otp_generation_total[5m]) > 50
+        for: 2m
+        labels:
+          severity: warning
+          category: otp_security
+        annotations:
+          summary: "Unusual OTP generation spike"
+          description: "High OTP generation rate: {{ $value }} per second"
+
+      # Pricing Security Alerts
+      - alert: PricingTamperingAttempt
+        expr: increase(pricing_validation_failures_total[5m]) > 5
+        for: 1m
+        labels:
+          severity: critical
+          category: pricing_security
+        annotations:
+          summary: "Pricing tampering attempt detected"
+          description: "{{ $value }} pricing validation failures detected"
+          runbook_url: "https://docs.perbox.com/runbooks/security/pricing-tampering"
+
+      - alert: UnauthorizedPricingAccess
+        expr: increase(unauthorized_pricing_access_total[5m]) > 3
+        for: 1m
+        labels:
+          severity: critical
+          category: pricing_security
+        annotations:
+          summary: "Unauthorized pricing access attempt"
+          description: "{{ $value }} unauthorized pricing access attempts"
+
+      # JWT Security Alerts
+      - alert: JWTTokenManipulation
+        expr: increase(jwt_validation_failures_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          category: jwt_security
+        annotations:
+          summary: "JWT token manipulation detected"
+          description: "{{ $value }} JWT validation failures in 5 minutes"
+
+      - alert: ExpiredTokenUsage
+        expr: increase(expired_token_usage_total[5m]) > 20
+        for: 2m
+        labels:
+          severity: warning
+          category: jwt_security
+        annotations:
+          summary: "High expired token usage"
+          description: "{{ $value }} expired token usage attempts"
+
+      # Database Security Alerts
+      - alert: UnusualDatabaseActivity
+        expr: rate(database_queries_total[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          category: database_security
+        annotations:
+          summary: "Unusual database activity detected"
+          description: "High database query rate: {{ $value }} queries per second"
+
+      - alert: DatabaseConnectionSpike
+        expr: database_connections_active > 80
+        for: 2m
+        labels:
+          severity: warning
+          category: database_security
+        annotations:
+          summary: "High database connection usage"
+          description: "{{ $value }} active database connections"
+
+      # API Security Alerts
+      - alert: APIRateLimitExceeded
+        expr: increase(rate_limit_exceeded_total[5m]) > 100
+        for: 2m
+        labels:
+          severity: warning
+          category: api_security
+        annotations:
+          summary: "API rate limit frequently exceeded"
+          description: "{{ $value }} rate limit violations in 5 minutes"
+
+      - alert: UnauthorizedAPIAccess
+        expr: increase(unauthorized_api_access_total[5m]) > 10
+        for: 1m
+        labels:
+          severity: critical
+          category: api_security
+        annotations:
+          summary: "Unauthorized API access attempts"
+          description: "{{ $value }} unauthorized API access attempts"
+
+  performance-rules.yml: |
+    groups:
+    - name: performance-alerts
+      rules:
+      # Application Performance
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s"
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          category: performance
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} errors per second"
+
+      # Database Performance
+      - alert: DatabaseSlowQueries
+        expr: rate(database_slow_queries_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: database_performance
+        annotations:
+          summary: "High number of slow database queries"
+          description: "{{ $value }} slow queries per second"
+
+      - alert: DatabaseConnectionPoolExhaustion
+        expr: database_connection_pool_usage > 0.9
+        for: 2m
+        labels:
+          severity: critical
+          category: database_performance
+        annotations:
+          summary: "Database connection pool near exhaustion"
+          description: "Connection pool usage at {{ $value }}%"
+
+      # Memory and CPU Performance
+      - alert: HighMemoryUsage
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          category: resource_performance
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}%"
+
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: resource_performance
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}%"
+
+      # CDN Performance
+      - alert: CDNHighLatency
+        expr: histogram_quantile(0.95, rate(cdn_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: cdn_performance
+        annotations:
+          summary: "CDN high latency detected"
+          description: "95th percentile CDN latency is {{ $value }}s"
+
+      - alert: CDNHighErrorRate
+        expr: rate(cdn_requests_total{status=~"4..|5.."}[5m]) > 0.02
+        for: 5m
+        labels:
+          severity: warning
+          category: cdn_performance
+        annotations:
+          summary: "CDN high error rate"
+          description: "CDN error rate is {{ $value }} errors per second"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: security-monitor
+  namespace: bulk-email-platform
+  labels:
+    app: security-monitor
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: security-monitor
+  template:
+    metadata:
+      labels:
+        app: security-monitor
+    spec:
+      containers:
+      - name: security-monitor
+        image: perbox/security-monitor:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: REDIS_URL
+          value: "redis://redis-cluster-service:6379"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: connection-string
+        - name: SECURITY_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: enhanced-security-secrets
+              key: security-webhook-url
+        - name: ALERT_EMAIL
+          value: "security@perbox.com"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: security-monitor-service
+  namespace: bulk-email-platform
+spec:
+  selector:
+    app: security-monitor
+  ports:
+  - port: 80
+    targetPort: 8080
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: bulk-email-platform
+data:
+  alertmanager.yml: |
+    global:
+      smtp_smarthost: 'localhost:587'
+      smtp_from: 'alerts@perbox.com'
+      smtp_auth_username: 'alerts@perbox.com'
+      smtp_auth_password: '${SMTP_PASSWORD}'
+
+    route:
+      group_by: ['alertname', 'category']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: 'web.hook'
+      routes:
+      - match:
+          severity: critical
+        receiver: 'critical-alerts'
+      - match:
+          category: authentication
+        receiver: 'security-team'
+      - match:
+          category: pricing_security
+        receiver: 'security-team'
+      - match:
+          category: performance
+        receiver: 'ops-team'
+
+    receivers:
+    - name: 'web.hook'
+      webhook_configs:
+      - url: 'http://security-monitor-service/webhook'
+        send_resolved: true
+
+    - name: 'critical-alerts'
+      email_configs:
+      - to: 'security@perbox.com'
+        subject: 'CRITICAL: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Time: {{ .StartsAt }}
+          {{ end }}
+      slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#security-alerts'
+        title: 'CRITICAL Security Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+
+    - name: 'security-team'
+      email_configs:
+      - to: 'security@perbox.com'
+        subject: 'Security Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Category: {{ .Labels.category }}
+          Time: {{ .StartsAt }}
+          Runbook: {{ .Annotations.runbook_url }}
+          {{ end }}
+
+    - name: 'ops-team'
+      email_configs:
+      - to: 'ops@perbox.com'
+        subject: 'Performance Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Time: {{ .StartsAt }}
+          {{ end }}
+
+    inhibit_rules:
+    - source_match:
+        severity: 'critical'
+      target_match:
+        severity: 'warning'
+      equal: ['alertname', 'instance']

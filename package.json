@@ -1,0 +1,63 @@
+{
+  "name": "bulk-email-platform",
+  "version": "1.0.0",
+  "description": "A comprehensive bulk email platform with multi-tier SaaS service",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "admin-frontend",
+    "backend",
+    "shared"
+  ],
+  "scripts": {
+    "setup": "scripts/setup-dev.bat",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:admin\" \"npm run dev:backend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:admin": "cd admin-frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "npm run build:shared && npm run build:backend && npm run build:frontend && npm run build:admin",
+    "build:shared": "cd shared && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "build:admin": "cd admin-frontend && npm run build",
+    "install:all": "npm install && cd frontend && npm install && cd ../admin-frontend && npm install && cd ../backend && npm install && cd ../shared && npm install",
+    "clean": "rm -rf node_modules frontend/node_modules admin-frontend/node_modules backend/node_modules shared/node_modules",
+    "lint": "npm run lint:frontend && npm run lint:admin && npm run lint:backend && npm run lint:shared",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:admin": "cd admin-frontend && npm run lint",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:shared": "cd shared && npm run lint",
+    "lint:fix": "npm run lint:fix:frontend && npm run lint:fix:admin && npm run lint:fix:backend && npm run lint:fix:shared",
+    "lint:fix:frontend": "cd frontend && npm run lint:fix",
+    "lint:fix:admin": "cd admin-frontend && npm run lint:fix",
+    "lint:fix:backend": "cd backend && npm run lint:fix",
+    "lint:fix:shared": "cd shared && npm run lint:fix",
+    "format": "npm run format:frontend && npm run format:admin && npm run format:backend && npm run format:shared",
+    "format:frontend": "cd frontend && npm run format",
+    "format:admin": "cd admin-frontend && npm run format",
+    "format:backend": "cd backend && npm run format",
+    "format:shared": "cd shared && npm run format",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:build": "docker-compose build",
+    "test": "npm run test:backend && npm run test:shared",
+    "test:backend": "cd backend && npm run test",
+    "test:shared": "cd shared && npm run test"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "email",
+    "bulk-email",
+    "saas",
+    "marketing",
+    "transactional-email"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "picocolors": "^1.1.1"
+  }
+}

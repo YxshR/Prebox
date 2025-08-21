@@ -1,0 +1,222 @@
+# File Upload Service Configuration for Logo and Branding Assets
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: file-upload-config
+  namespace: bulk-email-platform
+data:
+  upload-config.json: |
+    {
+      "storage": {
+        "provider": "s3",
+        "bucket": "bulk-email-platform-assets",
+        "region": "us-east-1",
+        "pathPrefix": "uploads/",
+        "publicUrlBase": "https://assets.bulkemail.com"
+      },
+      "validation": {
+        "maxFileSize": 10485760,
+        "allowedMimeTypes": [
+          "image/jpeg",
+          "image/png",
+          "image/svg+xml",
+          "image/webp"
+        ],
+        "allowedExtensions": [
+          ".jpg",
+          ".jpeg",
+          ".png",
+          ".svg",
+          ".webp"
+        ]
+      },
+      "processing": {
+        "generateThumbnails": true,
+        "thumbnailSizes": [
+          {"width": 150, "height": 150, "suffix": "_thumb"},
+          {"width": 300, "height": 300, "suffix": "_medium"},
+          {"width": 600, "height": 600, "suffix": "_large"}
+        ],
+        "optimizeImages": true,
+        "quality": 85
+      },
+      "security": {
+        "scanForMalware": true,
+        "validateImageHeaders": true,
+        "sanitizeFilenames": true
+      },
+      "paths": {
+        "logos": "logos/{tenantId}/",
+        "branding": "branding/{tenantId}/",
+        "templates": "templates/{tenantId}/",
+        "temp": "temp/"
+      }
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: file-upload-service
+  namespace: bulk-email-platform
+  labels:
+    app: file-upload-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: file-upload-service
+  template:
+    metadata:
+      labels:
+        app: file-upload-service
+    spec:
+      containers:
+      - name: file-upload
+        image: ghcr.io/bulk-email-platform/file-upload-service:latest
+        ports:
+        - containerPort: 3001
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: email-service-credentials
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: email-service-credentials
+              key: aws-secret-access-key
+        - name: S3_BUCKET
+          value: "bulk-email-platform-assets"
+        - name: AWS_REGION
+          value: "us-east-1"
+        - name: MAX_FILE_SIZE
+          value: "10485760"
+        - name: REDIS_URL
+          value: "redis://redis-cluster-service:6379"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-credentials
+              key: password
+        volumeMounts:
+        - name: upload-config
+          mountPath: /app/config/upload-config.json
+          subPath: upload-config.json
+        - name: temp-storage
+          mountPath: /tmp/uploads
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3001
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: upload-config
+        configMap:
+          name: file-upload-config
+      - name: temp-storage
+        emptyDir:
+          sizeLimit: 1Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: file-upload-service
+  namespace: bulk-email-platform
+  labels:
+    app: file-upload-service
+spec:
+  selector:
+    app: file-upload-service
+  ports:
+  - name: http
+    port: 3001
+    targetPort: 3001
+    protocol: TCP
+  type: ClusterIP
+
+---
+# Horizontal Pod Autoscaler for file upload service
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: file-upload-hpa
+  namespace: bulk-email-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: file-upload-service
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# Network Policy for file upload service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: file-upload-network-policy
+  namespace: bulk-email-platform
+spec:
+  podSelector:
+    matchLabels:
+      app: file-upload-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: backend
+    - podSelector:
+        matchLabels:
+          app: nginx-load-balancer
+    ports:
+    - protocol: TCP
+      port: 3001
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS for S3
+    - protocol: TCP
+      port: 53   # DNS
+    - protocol: UDP
+      port: 53   # DNS
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379

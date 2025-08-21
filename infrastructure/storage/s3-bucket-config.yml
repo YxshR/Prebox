@@ -1,0 +1,197 @@
+# S3 Bucket Configuration for Logo and Branding Assets
+# This configuration sets up AWS S3 buckets for production file storage
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s3-storage-config
+  namespace: bulk-email-platform
+data:
+  bucket-policy.json: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "PublicReadGetObject",
+          "Effect": "Allow",
+          "Principal": "*",
+          "Action": "s3:GetObject",
+          "Resource": "arn:aws:s3:::bulk-email-platform-assets/*",
+          "Condition": {
+            "StringEquals": {
+              "s3:ExistingObjectTag/public": "true"
+            }
+          }
+        },
+        {
+          "Sid": "DenyInsecureConnections",
+          "Effect": "Deny",
+          "Principal": "*",
+          "Action": "s3:*",
+          "Resource": [
+            "arn:aws:s3:::bulk-email-platform-assets",
+            "arn:aws:s3:::bulk-email-platform-assets/*"
+          ],
+          "Condition": {
+            "Bool": {
+              "aws:SecureTransport": "false"
+            }
+          }
+        }
+      ]
+    }
+
+  cors-policy.json: |
+    {
+      "CORSRules": [
+        {
+          "AllowedOrigins": [
+            "https://app.bulkemail.com",
+            "https://admin.bulkemail.com"
+          ],
+          "AllowedMethods": [
+            "GET",
+            "PUT",
+            "POST",
+            "DELETE"
+          ],
+          "AllowedHeaders": [
+            "*"
+          ],
+          "MaxAgeSeconds": 3000
+        }
+      ]
+    }
+
+  lifecycle-policy.json: |
+    {
+      "Rules": [
+        {
+          "ID": "DeleteIncompleteMultipartUploads",
+          "Status": "Enabled",
+          "Filter": {},
+          "AbortIncompleteMultipartUpload": {
+            "DaysAfterInitiation": 1
+          }
+        },
+        {
+          "ID": "TransitionToIA",
+          "Status": "Enabled",
+          "Filter": {
+            "Prefix": "logos/"
+          },
+          "Transitions": [
+            {
+              "Days": 30,
+              "StorageClass": "STANDARD_IA"
+            },
+            {
+              "Days": 90,
+              "StorageClass": "GLACIER"
+            }
+          ]
+        }
+      ]
+    }
+
+---
+# Kubernetes Job to create S3 bucket and configure policies
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: s3-bucket-setup
+  namespace: bulk-email-platform
+spec:
+  template:
+    spec:
+      containers:
+      - name: aws-cli
+        image: amazon/aws-cli:latest
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: email-service-credentials
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: email-service-credentials
+              key: aws-secret-access-key
+        - name: AWS_DEFAULT_REGION
+          value: "us-east-1"
+        command:
+        - /bin/bash
+        - -c
+        - |
+          # Create main assets bucket
+          aws s3 mb s3://bulk-email-platform-assets --region us-east-1
+          
+          # Create backup bucket
+          aws s3 mb s3://bulk-email-platform-assets-backup --region us-west-2
+          
+          # Apply bucket policy
+          aws s3api put-bucket-policy --bucket bulk-email-platform-assets --policy file:///config/bucket-policy.json
+          
+          # Apply CORS policy
+          aws s3api put-bucket-cors --bucket bulk-email-platform-assets --cors-configuration file:///config/cors-policy.json
+          
+          # Apply lifecycle policy
+          aws s3api put-bucket-lifecycle-configuration --bucket bulk-email-platform-assets --lifecycle-configuration file:///config/lifecycle-policy.json
+          
+          # Enable versioning
+          aws s3api put-bucket-versioning --bucket bulk-email-platform-assets --versioning-configuration Status=Enabled
+          
+          # Enable server-side encryption
+          aws s3api put-bucket-encryption --bucket bulk-email-platform-assets --server-side-encryption-configuration '{
+            "Rules": [
+              {
+                "ApplyServerSideEncryptionByDefault": {
+                  "SSEAlgorithm": "AES256"
+                }
+              }
+            ]
+          }'
+          
+          # Set up cross-region replication
+          aws s3api put-bucket-replication --bucket bulk-email-platform-assets --replication-configuration '{
+            "Role": "arn:aws:iam::ACCOUNT-ID:role/replication-role",
+            "Rules": [
+              {
+                "ID": "ReplicateToBackup",
+                "Status": "Enabled",
+                "Filter": {},
+                "Destination": {
+                  "Bucket": "arn:aws:s3:::bulk-email-platform-assets-backup",
+                  "StorageClass": "STANDARD_IA"
+                }
+              }
+            ]
+          }'
+          
+          echo "S3 bucket setup completed successfully"
+        volumeMounts:
+        - name: s3-config
+          mountPath: /config
+      volumes:
+      - name: s3-config
+        configMap:
+          name: s3-storage-config
+      restartPolicy: OnFailure
+  backoffLimit: 3
+
+---
+# Storage Class for persistent volumes
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-ssd
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp3
+  iops: "3000"
+  throughput: "125"
+  encrypted: "true"
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer

@@ -1,0 +1,401 @@
+# Grafana Dashboards for Security and Performance Monitoring
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: bulk-email-platform
+  labels:
+    grafana_dashboard: "1"
+data:
+  security-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Perbox Security Monitoring",
+        "tags": ["security", "authentication", "perbox"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Authentication Events",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(login_attempts_total[5m])",
+                "legendFormat": "Login Attempts"
+              },
+              {
+                "expr": "rate(failed_login_attempts_total[5m])",
+                "legendFormat": "Failed Logins"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Attempts per second"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "OTP Security Metrics",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(otp_generation_total[5m])",
+                "legendFormat": "OTP Generated"
+              },
+              {
+                "expr": "rate(otp_validation_failures_total[5m])",
+                "legendFormat": "OTP Failures"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 0
+            }
+          },
+          {
+            "id": 3,
+            "title": "Pricing Security Events",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(pricing_validation_failures_total[5m])",
+                "legendFormat": "Pricing Tampering Attempts"
+              },
+              {
+                "expr": "rate(unauthorized_pricing_access_total[5m])",
+                "legendFormat": "Unauthorized Access"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 8
+            }
+          },
+          {
+            "id": 4,
+            "title": "JWT Security Metrics",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(jwt_validation_failures_total[5m])",
+                "legendFormat": "JWT Validation Failures"
+              },
+              {
+                "expr": "rate(expired_token_usage_total[5m])",
+                "legendFormat": "Expired Token Usage"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 8
+            }
+          },
+          {
+            "id": 5,
+            "title": "Security Alerts Summary",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(ALERTS{category=\"authentication\"})",
+                "legendFormat": "Auth Alerts"
+              },
+              {
+                "expr": "sum(ALERTS{category=\"pricing_security\"})",
+                "legendFormat": "Pricing Alerts"
+              }
+            ],
+            "gridPos": {
+              "h": 4,
+              "w": 24,
+              "x": 0,
+              "y": 16
+            }
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
+
+  performance-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Perbox Performance Monitoring",
+        "tags": ["performance", "api", "database", "perbox"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "API Response Times",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))",
+                "legendFormat": "50th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+                "legendFormat": "95th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))",
+                "legendFormat": "99th percentile"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Response Time (seconds)"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "Request Rate and Errors",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total[5m])",
+                "legendFormat": "Request Rate"
+              },
+              {
+                "expr": "rate(http_requests_total{status=~\"5..\"}[5m])",
+                "legendFormat": "Error Rate"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 0
+            }
+          },
+          {
+            "id": 3,
+            "title": "Database Performance",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(database_queries_total[5m])",
+                "legendFormat": "Query Rate"
+              },
+              {
+                "expr": "rate(database_slow_queries_total[5m])",
+                "legendFormat": "Slow Queries"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 8
+            }
+          },
+          {
+            "id": 4,
+            "title": "Resource Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(container_cpu_usage_seconds_total[5m])",
+                "legendFormat": "CPU Usage"
+              },
+              {
+                "expr": "container_memory_usage_bytes / container_spec_memory_limit_bytes",
+                "legendFormat": "Memory Usage"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 8
+            }
+          },
+          {
+            "id": 5,
+            "title": "CDN Performance",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(cdn_request_duration_seconds_bucket[5m]))",
+                "legendFormat": "CDN Latency (95th)"
+              },
+              {
+                "expr": "rate(cdn_requests_total{status=~\"4..|5..\"}[5m])",
+                "legendFormat": "CDN Error Rate"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 24,
+              "x": 0,
+              "y": 16
+            }
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
+
+  home-page-metrics.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Home Page Redesign Metrics",
+        "tags": ["frontend", "home-page", "user-experience"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Page Load Performance",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(page_load_duration_seconds_bucket{page=\"home\"}[5m]))",
+                "legendFormat": "Page Load Time (95th)"
+              },
+              {
+                "expr": "histogram_quantile(0.95, rate(first_contentful_paint_seconds_bucket[5m]))",
+                "legendFormat": "First Contentful Paint"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "User Interactions",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(signup_button_clicks_total[5m])",
+                "legendFormat": "Signup Clicks"
+              },
+              {
+                "expr": "rate(hero_video_plays_total[5m])",
+                "legendFormat": "Hero Video Plays"
+              },
+              {
+                "expr": "rate(pricing_section_views_total[5m])",
+                "legendFormat": "Pricing Views"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 0
+            }
+          },
+          {
+            "id": 3,
+            "title": "Phone Verification Metrics",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(phone_verification_started_total[5m])",
+                "legendFormat": "Verifications Started"
+              },
+              {
+                "expr": "rate(phone_verification_completed_total[5m])",
+                "legendFormat": "Verifications Completed"
+              },
+              {
+                "expr": "rate(phone_verification_failed_total[5m])",
+                "legendFormat": "Verification Failures"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 8
+            }
+          },
+          {
+            "id": 4,
+            "title": "Media Asset Performance",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(media_load_duration_seconds_bucket[5m]))",
+                "legendFormat": "Media Load Time"
+              },
+              {
+                "expr": "rate(media_load_errors_total[5m])",
+                "legendFormat": "Media Load Errors"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 8
+            }
+          },
+          {
+            "id": 5,
+            "title": "Conversion Funnel",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "rate(home_page_visits_total[5m])",
+                "legendFormat": "Page Visits"
+              },
+              {
+                "expr": "rate(signup_attempts_total[5m])",
+                "legendFormat": "Signup Attempts"
+              },
+              {
+                "expr": "rate(signup_completions_total[5m])",
+                "legendFormat": "Signup Completions"
+              }
+            ],
+            "gridPos": {
+              "h": 4,
+              "w": 24,
+              "x": 0,
+              "y": 16
+            }
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
