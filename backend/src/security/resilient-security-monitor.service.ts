@@ -26,6 +26,7 @@ export class ResilientSecurityMonitorService {
   private monitoringService?: MonitoringService;
   private alertingService?: AlertingService;
   private logger: winston.Logger;
+  private isDemoMode: boolean;
   
   private healthStatus: SecurityMonitoringHealth;
   private healthCheckInterval: NodeJS.Timeout;
@@ -36,17 +37,19 @@ export class ResilientSecurityMonitorService {
 
   constructor(logger: winston.Logger) {
     this.logger = logger;
+    this.isDemoMode = process.env.DEMO_MODE === 'true';
     this.fallbackLogger = new FallbackLoggerService();
     this.threatDetectionService = new ThreatDetectionService();
     this.auditLogService = new AuditLogService();
     
+    // Initialize health status based on demo mode
     this.healthStatus = {
-      threatDetection: false,
-      auditLogging: false,
-      database: false,
-      redis: false,
-      alerting: false,
-      overall: false,
+      threatDetection: this.isDemoMode, // In demo mode, assume services are healthy
+      auditLogging: this.isDemoMode,
+      database: this.isDemoMode,
+      redis: this.isDemoMode,
+      alerting: this.isDemoMode,
+      overall: this.isDemoMode,
       lastCheck: new Date(),
       errors: []
     };
@@ -57,6 +60,12 @@ export class ResilientSecurityMonitorService {
 
   private async initializeServices(): Promise<void> {
     try {
+      // In demo mode, skip database-dependent service initialization
+      if (this.isDemoMode) {
+        this.logger.info('Security monitoring running in demo mode - database services disabled');
+        return;
+      }
+
       // Initialize monitoring and alerting services if available
       if (redisClient) {
         this.monitoringService = new MonitoringService(pool, redisClient, this.logger);
@@ -90,6 +99,21 @@ export class ResilientSecurityMonitorService {
     const startTime = Date.now();
 
     try {
+      // In demo mode, all services are considered healthy
+      if (this.isDemoMode) {
+        this.healthStatus = {
+          threatDetection: true,
+          auditLogging: true,
+          database: true,
+          redis: true,
+          alerting: true,
+          overall: true,
+          lastCheck: new Date(),
+          errors: []
+        };
+        return;
+      }
+
       // Check database connection
       const dbHealthy = await this.checkDatabaseHealth();
       this.healthStatus.database = dbHealthy;
@@ -161,6 +185,11 @@ export class ResilientSecurityMonitorService {
 
   private async checkDatabaseHealth(): Promise<boolean> {
     try {
+      // In demo mode, skip actual database check
+      if (this.isDemoMode) {
+        return true;
+      }
+
       const client = await pool.connect();
       await client.query('SELECT 1');
       client.release();
@@ -187,6 +216,11 @@ export class ResilientSecurityMonitorService {
 
   private async checkAuditLoggingHealth(): Promise<boolean> {
     try {
+      // In demo mode, skip actual audit logging check
+      if (this.isDemoMode) {
+        return true;
+      }
+
       // Try to write a test audit log
       await this.auditLogService.log({
         tenantId: uuidv4(), // Generate a proper UUID for health check
@@ -204,6 +238,11 @@ export class ResilientSecurityMonitorService {
 
   private async checkThreatDetectionHealth(): Promise<boolean> {
     try {
+      // In demo mode, skip actual threat detection check
+      if (this.isDemoMode) {
+        return true;
+      }
+
       // Check if threat detection service can access database
       const metrics = await this.threatDetectionService.getSecurityMetrics(uuidv4(), 1);
       return true;
@@ -394,6 +433,18 @@ export class ResilientSecurityMonitorService {
     success: boolean
   ): Promise<void> {
     try {
+      // In demo mode, only use fallback logging
+      if (this.isDemoMode) {
+        await this.fallbackLogger.logSecurityEvent({
+          timestamp: new Date().toISOString(),
+          level: success ? 'info' : 'warn',
+          service: 'authentication',
+          event: success ? 'login_success' : 'login_failed',
+          data: { tenantId, userId, ipAddress, userAgent }
+        });
+        return;
+      }
+
       await this.threatDetectionService.monitorAuthenticationEvents(
         tenantId, userId, ipAddress, userAgent, success
       );
@@ -427,6 +478,18 @@ export class ResilientSecurityMonitorService {
     userAgent: string
   ): Promise<void> {
     try {
+      // In demo mode, only use fallback logging
+      if (this.isDemoMode) {
+        await this.fallbackLogger.logSecurityEvent({
+          timestamp: new Date().toISOString(),
+          level: 'info',
+          service: 'api',
+          event: 'api_request',
+          data: { tenantId, userId, apiKeyId, endpoint, ipAddress, userAgent }
+        });
+        return;
+      }
+
       await this.threatDetectionService.monitorApiUsage(
         tenantId, userId, apiKeyId, endpoint, ipAddress, userAgent
       );

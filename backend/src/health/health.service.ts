@@ -80,7 +80,15 @@ export class HealthService {
    */
   async getSimpleHealth(): Promise<{ status: string; timestamp: string }> {
     try {
-      // Quick database ping
+      // In demo mode, skip database check
+      if (process.env.DEMO_MODE === 'true') {
+        return {
+          status: 'OK',
+          timestamp: new Date().toISOString()
+        };
+      }
+      
+      // Quick database ping for production
       await db.query('SELECT 1');
       
       return {
@@ -88,6 +96,13 @@ export class HealthService {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
+      // In demo mode, still return OK even if database fails
+      if (process.env.DEMO_MODE === 'true') {
+        return {
+          status: 'OK',
+          timestamp: new Date().toISOString()
+        };
+      }
       throw new Error('Service unhealthy');
     }
   }

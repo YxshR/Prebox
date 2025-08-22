@@ -41,8 +41,10 @@ export class ThreatDetectionService {
   private auditLogService: AuditLogService;
   private encryptionService: EncryptionService;
   private alertThresholds: Map<ThreatType, number>;
+  private isDemoMode: boolean;
 
   constructor() {
+    this.isDemoMode = process.env.DEMO_MODE === 'true';
     this.auditLogService = new AuditLogService();
     this.encryptionService = new EncryptionService();
     this.initializeThresholds();
@@ -68,6 +70,11 @@ export class ThreatDetectionService {
     userAgent: string,
     success: boolean
   ): Promise<void> {
+    // In demo mode, skip database-dependent threat detection
+    if (this.isDemoMode) {
+      return;
+    }
+
     if (!success) {
       await this.checkBruteForceAttack(tenantId, userId, ipAddress, userAgent);
     } else if (userId) {
@@ -86,6 +93,11 @@ export class ThreatDetectionService {
     ipAddress: string,
     userAgent: string
   ): Promise<void> {
+    // In demo mode, skip database-dependent threat detection
+    if (this.isDemoMode) {
+      return;
+    }
+
     await this.checkUnusualApiUsage(tenantId, userId, apiKeyId, endpoint, ipAddress, userAgent);
     await this.checkRateLimitAbuse(tenantId, userId, ipAddress, userAgent);
   }
@@ -619,6 +631,17 @@ export class ThreatDetectionService {
    * Get security metrics for dashboard
    */
   async getSecurityMetrics(tenantId: string, hours: number = 24): Promise<SecurityMetrics> {
+    // In demo mode, return mock metrics
+    if (this.isDemoMode) {
+      return {
+        failedLogins: 0,
+        rateLimitViolations: 0,
+        suspiciousIps: [],
+        threatAlerts: 0,
+        blockedRequests: 0
+      };
+    }
+
     const client = await pool.connect();
     
     try {
@@ -716,6 +739,11 @@ export class ThreatDetectionService {
    * Clean up expired blocks and throttles
    */
   async cleanupExpiredRestrictions(): Promise<void> {
+    // In demo mode, skip database cleanup
+    if (this.isDemoMode) {
+      return;
+    }
+
     const client = await pool.connect();
     
     try {

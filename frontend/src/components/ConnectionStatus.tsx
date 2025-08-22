@@ -1,84 +1,111 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
-import { connectionMonitor } from '../lib/api-client';
-import { getCircuitBreakerStatus } from '../lib/retry';
-import { getCircuitBreakerErrorMessage } from '../lib/errorMessages';
+import { Alert, AlertDescription } from './ui/alert';
+import { Button } from './ui/button';
 
 interface ConnectionStatusProps {
-  showDetails?: boolean;
-  className?: string;
+  onRetry?: () => void;
 }
 
-export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ 
-  showDetails = false, 
-  className = '' 
-}) => {
-  const [isOnline, setIsOnline] = useState(true);
-  const [circuitBreakerStatus, setCircuitBreakerStatus] = useState(getCircuitBreakerStatus());
+export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ onRetry }) => {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
 
   useEffect(() => {
-    // Subscribe to connection status changes
-    const unsubscribe = connectionMonitor.onStatusChange((online) => {
-      setIsOnline(online);
-    });
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
-    // Update circuit breaker status periodically
-    const interval = setInterval(() => {
-      setCircuitBreakerStatus(getCircuitBreakerStatus());
-    }, 5000);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
     return () => {
-      unsubscribe();
-      clearInterval(interval);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
-  const getStatusColor = () => {
-    if (!isOnline || !circuitBreakerStatus.isHealthy) return 'text-red-500';
-    return 'text-green-500';
-  };
+  useEffect(() => {
+    checkApiConnection();
+  }, [isOnline]);
 
-  const getStatusText = () => {
-    if (!isOnline) return 'Offline';
-    if (!circuitBreakerStatus.isHealthy) {
-      if (circuitBreakerStatus.state === 'OPEN') {
-        const minutes = Math.ceil(circuitBreakerStatus.timeUntilRecovery / 60000);
-        return `Service unavailable (${minutes}m)`;
+  const checkApiConnection = async () => {
+    setApiStatus('checking');
+    
+    try {
+      const response = await fetch('/api/health', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(5000), // 5 second timeout
+      });
+      
+      if (response.ok) {
+        setApiStatus('online');
+      } else {
+        setApiStatus('offline');
       }
-      return `Service issues (${circuitBreakerStatus.state})`;
+    } catch (error) {
+      console.warn('API connection check failed:', error);
+      setApiStatus('offline');
     }
-    return 'Connected';
   };
 
-  const getStatusIcon = () => {
-    if (!isOnline || !circuitBreakerStatus.isHealthy) {
-      return (
-        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-      );
-    }
+  const handleRetry = () => {
+    checkApiConnection();
+    onRetry?.();
+  };
+
+  if (!isOnline) {
     return (
-      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+      <Alert className="mb-4 border-orange-200 bg-orange-50">
+        <AlertDescription className="text-orange-800">
+          <div className="flex items-center justify-between">
+            <span>You're currently offline. Some features may not work properly.</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRetry}
+              className="ml-4"
+            >
+              Retry Connection
+            </Button>
+          </div>
+        </AlertDescription>
+      </Alert>
     );
-  };
-
-  if (!showDetails && isOnline && circuitBreakerStatus.isHealthy) {
-    return null; // Don't show anything when everything is working
   }
 
-  return (
-    <div className={`flex items-center space-x-2 ${className}`}>
-      {getStatusIcon()}
-      <span className={`text-sm ${getStatusColor()}`}>
-        {getStatusText()}
-      </span>
-      {showDetails && (
-        <div className="text-xs text-gray-500">
-          (Failures: {circuitBreakerStatus.failureCount})
-        </div>
-      )}
-    </div>
-  );
+  if (apiStatus === 'offline') {
+    return (
+      <Alert className="mb-4 border-red-200 bg-red-50">
+        <AlertDescription className="text-red-800">
+          <div className="flex items-center justify-between">
+            <span>Unable to connect to the server. Some features may not work properly.</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRetry}
+              className="ml-4"
+            >
+              Retry Connection
+            </Button>
+          </div>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (apiStatus === 'checking') {
+    return (
+      <Alert className="mb-4 border-blue-200 bg-blue-50">
+        <AlertDescription className="text-blue-800">
+          Checking connection status...
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  return null; // Don't show anything when connection is good
 };
 
 export default ConnectionStatus;

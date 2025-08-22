@@ -19,10 +19,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "BulkEmail Platform - Professional Email Marketing",
   description: "Send bulk emails with ease. Professional email marketing platform with AI templates, analytics, and multi-tier pricing.",
-  // Security meta tags
+  // Security meta tags - Note: X-Frame-Options removed as it should be set via HTTP headers only
   other: {
     'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
     'X-XSS-Protection': '1; mode=block',
   }
 };
@@ -35,9 +34,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Additional security meta tags */}
+        {/* Additional security meta tags - Note: X-Frame-Options removed as it should be set via HTTP headers only */}
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-        <meta httpEquiv="X-Frame-Options" content="DENY" />
         <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
         <meta name="referrer" content="strict-origin-when-cross-origin" />
       </head>

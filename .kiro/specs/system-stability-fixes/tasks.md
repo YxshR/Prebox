@@ -170,7 +170,8 @@ on for retryable vs non-retryable errors
   - _Requirements: 2.4, 2.5_
 
 
-- [x] 4. Fix Security Monitoring System
+- [-] 4. Fix Security Monitoring System
+
 
 
 
@@ -199,7 +200,10 @@ on for retryable vs non-retryable errors
 
 - [ ] 4. Fix Security Monitoring System
 
-- [x] 4.1 Debug and Fix Security Monitoring Initialization
+
+- [ ] 4.1 Debug and Fix Security Monitoring Initialization
+
+
 
 
 

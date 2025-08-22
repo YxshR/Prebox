@@ -29,8 +29,10 @@ export interface AuditLogFilter {
 
 export class AuditLogService {
   private encryptionService: EncryptionService;
+  private isDemoMode: boolean;
 
   constructor() {
+    this.isDemoMode = process.env.DEMO_MODE === 'true';
     this.encryptionService = new EncryptionService();
   }
 
@@ -38,6 +40,11 @@ export class AuditLogService {
    * Log an audit event
    */
   async log(entry: AuditLogEntry): Promise<string> {
+    // In demo mode, return a mock ID without database interaction
+    if (this.isDemoMode) {
+      return uuidv4();
+    }
+
     const client = await pool.connect();
     
     try {
@@ -83,6 +90,14 @@ export class AuditLogService {
     logs: AuditLogEntry[];
     total: number;
   }> {
+    // In demo mode, return empty results
+    if (this.isDemoMode) {
+      return {
+        logs: [],
+        total: 0
+      };
+    }
+
     const client = await pool.connect();
     
     try {

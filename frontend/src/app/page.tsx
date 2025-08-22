@@ -134,6 +134,14 @@ export default function Home() {
                       Sign Up
                     </Link>
                   </InteractiveElement>
+                  <InteractiveElement type="button">
+                    <Link
+                      href="/demo"
+                      className="text-white/80 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                    >
+                      Demo
+                    </Link>
+                  </InteractiveElement>
                   <InteractiveElement type="button" hoverScale={1.02} tapScale={0.98}>
                     <Link
                       href="/auth/login"
@@ -147,39 +155,17 @@ export default function Home() {
             </div>
           </AnimatedSection>
 
-          {/* Hero Section - Critical feature that needs connection for signup */}
-          <CriticalFeature featureName="Hero Section">
-            <HeroSection onSignupClick={handleSignupClick} />
-          </CriticalFeature>
+          {/* Hero Section - Works offline */}
+          <HeroSection onSignupClick={handleSignupClick} />
 
-          {/* Interactive Multimedia Showcase - API dependent content */}
+          {/* Interactive Multimedia Showcase - Works offline */}
           <AnimatedSection animation="fadeUp" delay={0.3} threshold={0.2}>
-            <ApiDependentContent
-              fallback={
-                <div className="min-h-[600px] bg-gray-50 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-20 h-20 mx-auto mb-6 bg-gray-200 rounded-full flex items-center justify-center">
-                      <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                      Feature Showcase
-                    </h3>
-                    <p className="text-gray-600 max-w-md">
-                      Interactive demos and multimedia content will be available when you're connected to the internet.
-                    </p>
-                  </div>
-                </div>
-              }
-            >
-              <LazyMultimediaShowcaseWrapper 
-                onFeatureSelect={(featureId) => {
-                  console.log('Selected feature:', featureId);
-                  // Could track analytics or navigate to specific demo
-                }}
-              />
-            </ApiDependentContent>
+            <LazyMultimediaShowcaseWrapper 
+              onFeatureSelect={(featureId) => {
+                console.log('Selected feature:', featureId);
+                // Could track analytics or navigate to specific demo
+              }}
+            />
           </AnimatedSection>
 
           {/* Secure Animated Pricing Section - Critical for business */}

@@ -1,6 +1,7 @@
 import { EmailProvider, EmailJob, EmailSendResult, BatchSendResult, EmailPriority } from './types';
 import { SESProvider } from './providers/ses.provider';
 import { SendGridProvider } from './providers/sendgrid.provider';
+import { MockProvider } from './providers/mock.provider';
 
 export class EmailService {
   private providers: Map<string, EmailProvider> = new Map();
@@ -37,6 +38,15 @@ export class EmailService {
           console.log('✅ SendGrid provider initialized');
         } else {
           console.warn('⚠️ SendGrid configuration invalid');
+        }
+      }
+
+      // Initialize Mock provider for demo mode
+      if (process.env.NODE_ENV === 'development' && process.env.DEMO_MODE === 'true') {
+        const mockProvider = new MockProvider();
+        if (await mockProvider.verifyConfiguration()) {
+          this.providers.set('mock', mockProvider);
+          console.log('✅ Mock email provider initialized (Demo Mode)');
         }
       }
 

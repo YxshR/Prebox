@@ -17,8 +17,10 @@ export default function OfflinePage() {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
-    // Set initial state
-    setIsOnline(navigator.onLine);
+    // Set initial state (only on client side)
+    if (typeof window !== 'undefined') {
+      setIsOnline(navigator.onLine);
+    }
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -31,19 +33,27 @@ export default function OfflinePage() {
 
   const handleRetry = () => {
     setRetryCount(prev => prev + 1);
-    window.location.reload();
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
   };
 
   const handleGoHome = () => {
-    window.location.href = '/';
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
   };
 
-  if (isOnline) {
-    // Redirect to home if back online
-    setTimeout(() => {
-      window.location.href = '/';
-    }, 1000);
-  }
+  useEffect(() => {
+    if (isOnline && typeof window !== 'undefined') {
+      // Redirect to home if back online
+      const timer = setTimeout(() => {
+        window.location.href = '/';
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isOnline]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">

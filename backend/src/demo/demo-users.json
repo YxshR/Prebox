@@ -11,8 +11,8 @@
     "subscriptionTier": "free",
     "isEmailVerified": true,
     "isPhoneVerified": true,
-    "createdAt": "2025-08-20T04:01:02.194Z",
-    "lastLoginAt": "2025-08-20T04:01:02.195Z"
+    "createdAt": "2025-08-22T12:47:17.757Z",
+    "lastLoginAt": "2025-08-22T12:47:17.757Z"
   },
   {
     "id": "demo-user-2",
@@ -26,8 +26,8 @@
     "subscriptionTier": "paid_standard",
     "isEmailVerified": true,
     "isPhoneVerified": true,
-    "createdAt": "2025-08-20T04:01:02.195Z",
-    "lastLoginAt": "2025-08-20T04:01:02.195Z"
+    "createdAt": "2025-08-22T12:47:17.757Z",
+    "lastLoginAt": "2025-08-22T12:47:17.757Z"
   },
   {
     "id": "demo-user-3",
@@ -41,8 +41,8 @@
     "subscriptionTier": "premium",
     "isEmailVerified": true,
     "isPhoneVerified": false,
-    "createdAt": "2025-08-20T04:01:02.195Z",
-    "lastLoginAt": "2025-08-20T04:01:02.195Z"
+    "createdAt": "2025-08-22T12:47:17.757Z",
+    "lastLoginAt": "2025-08-22T12:47:17.757Z"
   },
   {
     "id": "demo-user-4",
@@ -56,8 +56,8 @@
     "subscriptionTier": "enterprise",
     "isEmailVerified": true,
     "isPhoneVerified": true,
-    "createdAt": "2025-08-20T04:01:02.195Z",
-    "lastLoginAt": "2025-08-20T04:01:02.195Z"
+    "createdAt": "2025-08-22T12:47:17.757Z",
+    "lastLoginAt": "2025-08-22T12:47:17.757Z"
   },
   {
     "id": "demo-user-5",
@@ -70,7 +70,7 @@
     "subscriptionTier": "free",
     "isEmailVerified": false,
     "isPhoneVerified": false,
-    "createdAt": "2025-08-20T04:01:02.195Z",
-    "lastLoginAt": "2025-08-20T04:01:02.195Z"
+    "createdAt": "2025-08-22T12:47:17.757Z",
+    "lastLoginAt": "2025-08-22T12:47:17.757Z"
   }
 ]
