@@ -15,23 +15,30 @@ This project is a monorepo with multiple applications. Each application needs to
 1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
 2. Click "New Project"
 3. Import your repository
-4. **Important**: Set the root directory to `frontend`
+4. **CRITICAL**: Set the root directory to `frontend`
 5. Framework Preset: Next.js
 6. Build Command: `npm run build`
 7. Install Command: `npm install --legacy-peer-deps`
-8. Output Directory: `.next` (default)
+8. Output Directory: Leave empty (auto-detected)
 9. Node.js Version: 18.x
 
 ### 2. Deploy Admin Frontend (Admin Panel)
 
 1. Create another project on Vercel
 2. Import the same repository
-3. **Important**: Set the root directory to `admin-frontend`
+3. **CRITICAL**: Set the root directory to `admin-frontend`
 4. Framework Preset: Next.js
 5. Build Command: `npm run build`
 6. Install Command: `npm install --legacy-peer-deps`
-7. Output Directory: `.next` (default)
+7. Output Directory: Leave empty (auto-detected)
 8. Node.js Version: 18.x
+
+### ⚠️ IMPORTANT NOTES:
+
+- **DO NOT** deploy from the root directory
+- **ALWAYS** set the root directory to either `frontend` or `admin-frontend`
+- Each app must be deployed as a separate Vercel project
+- The `vercel.json` files in each directory will handle the configuration
 
 ### 3. Environment Variables
 
@@ -74,30 +81,46 @@ STRIPE_SECRET_KEY=your-stripe-secret-key
 
 ## Troubleshooting Common Issues
 
-### 1. Build Failures
+### 1. "Function Runtimes must have a valid version" Error
+
+**Solution:**
+- Make sure you're deploying from `frontend` or `admin-frontend` directory, NOT the root
+- Delete any `vercel.json` in the root directory
+- Use the individual `vercel.json` files in each app directory
+
+### 2. Build Failures
 
 If you get build errors:
-- Make sure you're setting the correct root directory
+- Make sure you're setting the correct root directory (`frontend` or `admin-frontend`)
 - Check that all dependencies are properly installed
 - Verify TypeScript configuration
+- Run `npm run prepare:deployment` first
 
-### 2. Dependency Issues
+### 3. Dependency Issues
 
 If you get dependency resolution errors:
 - Use `--legacy-peer-deps` flag in install command
 - Make sure shared packages are built before the main app
+- Try clearing node_modules and reinstalling
 
-### 3. Environment Variables
+### 4. Environment Variables
 
 - Double-check all environment variables are set
 - Make sure API URLs don't have trailing slashes
 - Verify database and Redis connections
 
-### 4. Monorepo Issues
+### 5. Monorepo Issues
 
+- **NEVER** deploy from the root directory
 - Each app must be deployed as a separate Vercel project
 - Set the correct root directory for each deployment
 - Don't try to deploy the entire monorepo as one project
+
+### 6. "Cannot find module" Errors
+
+- Make sure the root directory is set correctly
+- Check that package.json exists in the selected directory
+- Verify all dependencies are listed in the correct package.json
 
 ## Custom Domains
 

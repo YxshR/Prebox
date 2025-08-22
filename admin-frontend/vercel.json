@@ -1,15 +1,5 @@
 {
-  "version": 2,
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "installCommand": "npm install --legacy-peer-deps",
-  "outputDirectory": ".next",
-  "functions": {
-    "pages/api/**/*.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
-  "env": {
-    "NODE_ENV": "production"
-  }
+  "installCommand": "npm install --legacy-peer-deps"
 }
