@@ -40,8 +40,10 @@
     "recharts": "^2.8.0",
     "zustand": "^4.5.7",
     "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-tabs": "^1.0.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
+    "lucide-react": "^0.294.0",
     "tailwind-merge": "^2.0.0"
   },
   "devDependencies": {
