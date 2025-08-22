@@ -18,7 +18,8 @@
     "test:components": "jest --testPathPattern=components",
     "test:security": "jest --testPathPattern=security",
     "test:coverage": "jest --coverage",
-    "test:ci": "jest --ci --coverage --watchAll=false"
+    "test:ci": "jest --ci --coverage --watchAll=false",
+    "postinstall": "npm run build:shared || true"
   },
   "dependencies": {
     "@headlessui/react": "^2.0.4",

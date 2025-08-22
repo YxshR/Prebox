@@ -14,6 +14,12 @@ const nextConfig: NextConfig = {
     // !! WARN !!
     ignoreBuildErrors: true,
   },
+  
+  // Output configuration for Vercel
+  output: 'standalone',
+  
+  // Transpile shared packages
+  transpilePackages: ['bulk-email-platform-shared'],
 
   // Performance optimizations
   experimental: {
@@ -25,6 +31,14 @@ const nextConfig: NextConfig = {
 
   // Enhanced code splitting
   webpack: (config: any, { dev, isServer }) => {
+    // Fix for potential module resolution issues in Vercel
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      net: false,
+      tls: false,
+    };
+
     // Bundle analyzer (conditional)
     if (process.env.ANALYZE === 'true') {
       const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');

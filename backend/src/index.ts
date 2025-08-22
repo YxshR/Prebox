@@ -100,6 +100,12 @@ try {
   logger.error('Failed to initialize resilient security monitoring', { error });
 }
 
+// Initialize enhanced health monitoring and perform startup validation
+import { enhancedHealthMonitor } from './health/enhanced-health.routes';
+enhancedHealthMonitor.performStartupValidation().catch(error => {
+  logger.error('Startup validation failed', { error });
+});
+
 // Security middleware (applied first)
 app.use(securityHeaders); // TLS and security headers
 app.use(securityComplianceMiddleware.initializeSecurityContext);

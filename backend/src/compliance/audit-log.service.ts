@@ -1,5 +1,6 @@
 import pool from '../config/database';
 import { EncryptionService } from '../security/encryption.service';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface AuditLogEntry {
   tenantId: string;
@@ -40,7 +41,7 @@ export class AuditLogService {
     const client = await pool.connect();
     
     try {
-      const logId = this.encryptionService.generateSecureToken();
+      const logId = uuidv4();
       const timestamp = entry.timestamp || new Date();
 
       // Mask sensitive data in details

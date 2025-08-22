@@ -1,8 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { healthService } from './health.service';
 import { ErrorHandlerMiddleware } from '../auth/error-handler.middleware';
+import enhancedHealthRoutes from './enhanced-health.routes';
 
 const router = Router();
+
+// Mount enhanced health routes
+router.use('/', enhancedHealthRoutes);
 
 /**
  * GET /health

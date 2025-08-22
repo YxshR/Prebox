@@ -158,14 +158,19 @@ export class HealthCheckService {
    */
   private async storeHealthCheck(health: SystemHealth): Promise<void> {
     try {
+      // Store overall system health check
       await this.db.query(`
-        INSERT INTO health_checks (overall_status, checks_data, timestamp, uptime)
+        INSERT INTO health_checks (service_name, status, metadata, checked_at)
         VALUES ($1, $2, $3, $4)
       `, [
+        'system',
         health.overall,
-        JSON.stringify(health.checks),
-        health.timestamp,
-        health.uptime
+        JSON.stringify({
+          checks: health.checks,
+          uptime: health.uptime,
+          timestamp: health.timestamp
+        }),
+        health.timestamp
       ]);
 
       // Also store in Redis for quick access

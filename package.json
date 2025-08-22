@@ -43,7 +43,14 @@
     "docker:build": "docker-compose build",
     "test": "npm run test:backend && npm run test:shared",
     "test:backend": "cd backend && npm run test",
-    "test:shared": "cd shared && npm run test"
+    "test:shared": "cd shared && npm run test",
+    "setup:env": "node scripts/setup-env.js",
+    "validate:env": "node scripts/validate-env-security.js",
+    "validate:git": "node scripts/validate-env-security.js",
+    "validate:deployment": "node scripts/validate-deployment.js",
+    "health:check": "node scripts/health-check.js",
+    "test:deployment": "node scripts/test-deployment.js",
+    "prepare:deployment": "node scripts/prepare-deployment.js"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
