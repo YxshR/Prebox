@@ -46,6 +46,6 @@ AlertDescription.displayName = "AlertDescription"
 
 export interface AlertProps
   extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof alertVariants> {}
+  VariantProps<typeof alertVariants> { }
 
 export { Alert, AlertDescription }
