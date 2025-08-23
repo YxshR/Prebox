@@ -139,7 +139,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'", // Tailwind requires unsafe-inline
               "img-src 'self' data: https:",
               "font-src 'self' data:",
-              "connect-src 'self' http://localhost:8000 https://api.* ws: wss:",
+              "connect-src 'self' https://prebox.onrender.com https://api.* ws: wss:",
               "media-src 'self' https:",
               "object-src 'none'",
               "base-uri 'self'",

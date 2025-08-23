@@ -60,7 +60,7 @@ export class MonitoringService {
 
       // Store in Redis for real-time monitoring
       const key = `perf:${metric.endpoint}:${metric.method}`;
-      await this.redis.zadd(key, Date.now(), JSON.stringify(metric));
+      await this.redis.zAdd(key, { score: Date.now(), value: JSON.stringify(metric) });
       await this.redis.expire(key, 3600); // 1 hour TTL
 
       // Log performance issues
@@ -97,7 +97,7 @@ export class MonitoringService {
 
       // Update real-time counters in Redis
       const dailyKey = `business:${metric.name}:${new Date().toISOString().split('T')[0]}`;
-      await this.redis.incrbyfloat(dailyKey, metric.value);
+      await this.redis.incrByFloat(dailyKey, metric.value);
       await this.redis.expire(dailyKey, 86400 * 7); // 7 days TTL
 
       this.logger.info('Business metric recorded', metric);

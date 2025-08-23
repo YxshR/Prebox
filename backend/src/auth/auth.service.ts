@@ -131,10 +131,22 @@ export class AuthService {
     }
 
     const user = this.mapRowToUser(result.rows[0]);
-    const isPasswordValid = await bcrypt.compare(credentials.password, result.rows[0].password_hash);
-
-    if (!isPasswordValid) {
-      throw new Error('Invalid credentials');
+    
+    // Handle Auth0 users (they don't have passwords)
+    if (user.auth0Id && !credentials.password) {
+      // Auth0 user login - skip password validation
+    } else if (user.auth0Id && credentials.password) {
+      throw new Error('This account uses Auth0 authentication. Please login through Auth0.');
+    } else {
+      // Regular user - validate password
+      if (!result.rows[0].password_hash) {
+        throw new Error('Invalid credentials');
+      }
+      
+      const isPasswordValid = await bcrypt.compare(credentials.password, result.rows[0].password_hash);
+      if (!isPasswordValid) {
+        throw new Error('Invalid credentials');
+      }
     }
 
     // Update last login
@@ -300,6 +312,7 @@ export class AuthService {
       isEmailVerified: row.is_email_verified,
       isPhoneVerified: row.is_phone_verified,
       googleId: row.google_id,
+      auth0Id: row.auth0_id,
       createdAt: new Date(row.created_at),
       lastLoginAt: row.last_login_at ? new Date(row.last_login_at) : new Date()
     };

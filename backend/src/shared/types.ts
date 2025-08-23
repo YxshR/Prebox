@@ -11,6 +11,7 @@ export interface User {
   isEmailVerified: boolean;
   isPhoneVerified: boolean;
   googleId?: string;
+  auth0Id?: string;
   createdAt: Date;
   lastLoginAt: Date;
 }
@@ -21,7 +22,8 @@ export interface UserRegistration {
   phone?: string;
   firstName?: string;
   lastName?: string;
-  registrationMethod: 'email' | 'phone_google';
+  registrationMethod: 'email' | 'phone_google' | 'auth0';
+  auth0Id?: string;
 }
 
 export interface LoginCredentials {
@@ -261,4 +263,38 @@ export enum ScheduledEmailStatus {
   SENT = 'sent',
   CANCELLED = 'cancelled',
   FAILED = 'failed'
+}
+
+// Auth0 Types
+export interface Auth0Profile {
+  id: string;
+  userId: string;
+  auth0Id: string;
+  profileData: Auth0UserProfile;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Auth0UserProfile {
+  sub: string;
+  email: string;
+  email_verified: boolean;
+  name?: string;
+  given_name?: string;
+  family_name?: string;
+  picture?: string;
+  locale?: string;
+  updated_at?: string;
+}
+
+export interface Auth0SignupRequest {
+  auth0Profile: Auth0UserProfile;
+  phone?: string;
+}
+
+export interface Auth0CallbackResult {
+  user: User;
+  isNewUser: boolean;
+  requiresPhoneVerification: boolean;
+  otpId?: string;
 }

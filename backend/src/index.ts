@@ -6,12 +6,15 @@ import passport from 'passport';
 import winston from 'winston';
 import redisClient from './config/redis';
 import db from './config/database';
-import { authRoutes, apiKeyRoutes, SecurityMiddleware, ErrorHandlerMiddleware } from './auth';
+import { authRoutes, apiKeyRoutes, phoneVerificationRoutes, SecurityMiddleware, ErrorHandlerMiddleware } from './auth';
+import ComprehensiveSecurityMiddleware from './auth/comprehensive-security.middleware';
+import EnhancedAuthMiddleware from './auth/enhanced-auth.middleware';
+import ComprehensiveValidationMiddleware from './auth/comprehensive-validation.middleware';
 import adminAuthRoutes from './auth/admin-auth.routes';
 import adminRoutes from './admin/admin.routes';
 import securityRoutes from './security/security.routes';
-import pricingRoutes from './security/pricing.routes';
-import { pricingValidationRoutes } from './pricing';
+import securityPricingRoutes from './security/pricing.routes';
+import { pricingRoutes, pricingValidationRoutes } from './pricing';
 import { SecurityMiddleware as SecurityComplianceMiddleware } from './security/security.middleware';
 import { securityHeaders } from './security/tls.config';
 // Billing routes will be imported conditionally
@@ -26,6 +29,7 @@ import { createDomainRoutes } from './domains';
 import analyticsRoutes from './analytics/analytics.routes';
 import settingsRoutes from './settings/settings.routes';
 import healthRoutes from './health/health.routes';
+import authMonitoringRoutes from './monitoring/auth-monitoring.routes';
 import { connectionRecoveryMiddleware } from './middleware/connection-recovery.middleware';
 import { 
   ApiErrorHandlerMiddleware, 
@@ -41,6 +45,11 @@ import {
 } from './middleware/retry-logic.middleware';
 import { initializeMonitoring, createMetricsRecorder, createHealthCheckHelpers } from './monitoring/monitoring.integration';
 import { ResilientSecurityMonitorService } from './security/resilient-security-monitor.service';
+import { AuthMonitoringService } from './monitoring/auth-monitoring.service';
+import { AuthMonitoringMiddleware } from './monitoring/auth-monitoring.middleware';
+import { PerformanceMonitoringMiddleware } from './monitoring/performance-monitoring.middleware';
+import { ComprehensiveHealthService } from './health/comprehensive-health.service';
+import deploymentHealthRoutes from './health/deployment-health.routes';
 
 // Load environment variables
 dotenv.config();
@@ -49,6 +58,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const securityMiddleware = new SecurityMiddleware();
 const securityComplianceMiddleware = new SecurityComplianceMiddleware();
+const comprehensiveSecurityMiddleware = new ComprehensiveSecurityMiddleware();
+const enhancedAuthMiddleware = new EnhancedAuthMiddleware();
 
 // Initialize logger
 const logger = winston.createLogger({
@@ -81,10 +92,26 @@ redisClient.connect().catch(console.error);
 // Initialize monitoring system
 let monitoringSystem: any;
 let resilientSecurityMonitor: ResilientSecurityMonitorService;
+let authMonitoringService: AuthMonitoringService;
+let authMonitoringMiddleware: AuthMonitoringMiddleware;
+let performanceMonitoringMiddleware: PerformanceMonitoringMiddleware;
+let comprehensiveHealthService: ComprehensiveHealthService;
 
 initializeMonitoring(app, db, redisClient, logger)
   .then((monitoring) => {
     monitoringSystem = monitoring;
+    
+    // Initialize auth monitoring
+    authMonitoringService = new AuthMonitoringService(db, redisClient, logger, monitoring);
+    authMonitoringMiddleware = new AuthMonitoringMiddleware(authMonitoringService);
+    performanceMonitoringMiddleware = new PerformanceMonitoringMiddleware(monitoring, authMonitoringService);
+    comprehensiveHealthService = new ComprehensiveHealthService(db, redisClient, logger);
+    
+    // Store in app locals for access in routes
+    app.locals.authMonitoringService = authMonitoringService;
+    app.locals.performanceMonitoringMiddleware = performanceMonitoringMiddleware;
+    app.locals.comprehensiveHealthService = comprehensiveHealthService;
+    
     logger.info('Monitoring system initialized successfully');
   })
   .catch((error) => {
@@ -106,20 +133,24 @@ enhancedHealthMonitor.performStartupValidation().catch(error => {
   logger.error('Startup validation failed', { error });
 });
 
-// Security middleware (applied first)
+// Security middleware (applied first) - Enhanced comprehensive security
 app.use(securityHeaders); // TLS and security headers
+app.use(comprehensiveSecurityMiddleware.securityHeaders); // Enhanced security headers
+app.use(comprehensiveSecurityMiddleware.initializeSecurityContext); // Security context initialization
+app.use(comprehensiveSecurityMiddleware.checkBlockedIPs); // IP blocking
+app.use(comprehensiveSecurityMiddleware.createRateLimit('general')); // General rate limiting
+app.use(comprehensiveSecurityMiddleware.slowDownMiddleware); // Slow down repeated requests
+app.use(comprehensiveSecurityMiddleware.requestLimits('10mb', 30000)); // Request size and timeout limits
+app.use(comprehensiveSecurityMiddleware.securityMonitoring); // Security monitoring and logging
+
+// Legacy security middleware for backward compatibility
 app.use(securityComplianceMiddleware.initializeSecurityContext);
 app.use(securityComplianceMiddleware.checkBlockedIp);
-app.use(securityMiddleware.securityHeaders);
 app.use(securityMiddleware.securityLogger);
-app.use(securityMiddleware.requestTimeout(30000));
-app.use(securityMiddleware.generalRateLimit);
-app.use(securityMiddleware.slowDown);
 
-// Basic middleware
-app.use(helmet());
-app.use(securityMiddleware.enhancedCors);
-app.use(securityMiddleware.requestSizeLimit('10mb'));
+// Basic middleware with enhanced security
+app.use(helmet()); // Basic helmet protection
+app.use(comprehensiveSecurityMiddleware.corsMiddleware); // Enhanced CORS with security
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -131,31 +162,65 @@ app.use(createRetryMiddleware({
 }));
 app.use(addRetryHeaders);
 
-// Input sanitization and API versioning
+// Add performance monitoring middleware
+app.use((req, res, next) => {
+  if (performanceMonitoringMiddleware) {
+    performanceMonitoringMiddleware.trackPerformance(req, res, next);
+  } else {
+    next();
+  }
+});
+
+// Input sanitization and validation with enhanced security
+app.use(comprehensiveSecurityMiddleware.sanitizeInput); // Comprehensive input sanitization
+app.use(ComprehensiveValidationMiddleware.handleConstraintViolations); // Database constraint handling
+app.use(securityMiddleware.apiVersioning); // API versioning
+app.use(securityMiddleware.validateApiKeyFormat); // API key format validation
+
+// Legacy sanitization for backward compatibility
 app.use(securityComplianceMiddleware.sanitizeRequest);
-app.use(securityMiddleware.sanitizeInput);
-app.use(securityMiddleware.apiVersioning);
-app.use(securityMiddleware.validateApiKeyFormat);
 
 // Initialize Passport
 app.use(passport.initialize());
 
-// Routes with enhanced security
+// Routes with comprehensive enhanced security
 app.use('/api/auth', 
-  securityMiddleware.authRateLimit, 
-  securityComplianceMiddleware.monitorAuthentication,
+  comprehensiveSecurityMiddleware.createRateLimit('auth'), // Enhanced auth rate limiting
+  securityComplianceMiddleware.monitorAuthentication, // Authentication monitoring
+  (req, res, next) => {
+    if (authMonitoringMiddleware) {
+      authMonitoringMiddleware.trackAuthPerformance(req, res, next);
+    } else {
+      next();
+    }
+  },
   authRoutes
 );
-app.use('/api/auth/api-keys', apiKeyRoutes);
+app.use('/api/auth/api-keys', 
+  comprehensiveSecurityMiddleware.createRateLimit('auth'), // Rate limit API key operations
+  apiKeyRoutes
+);
+app.use('/api/auth/phone-verification', 
+  comprehensiveSecurityMiddleware.createRateLimit('phone'), // Phone-specific rate limiting
+  securityComplianceMiddleware.monitorAuthentication,
+  phoneVerificationRoutes
+);
 
 // Security and compliance routes
 app.use('/api/security', securityRoutes);
 
-// Pricing protection routes
+// Core pricing routes
 app.use('/api/pricing', 
   securityComplianceMiddleware.monitorPricingAccess,
   securityComplianceMiddleware.logDataAccess('pricing'),
   pricingRoutes
+);
+
+// Security pricing protection routes
+app.use('/api/pricing/security', 
+  securityComplianceMiddleware.monitorPricingAccess,
+  securityComplianceMiddleware.logDataAccess('pricing'),
+  securityPricingRoutes
 );
 
 // Pricing validation routes
@@ -213,6 +278,10 @@ app.use('/api/settings', settingsRoutes);
 // Health check routes
 app.use('/health', healthRoutes);
 app.use('/api/health', healthRoutes);
+app.use('/api/health/deployment', deploymentHealthRoutes);
+
+// Monitoring routes
+app.use('/api/monitoring/auth', authMonitoringRoutes);
 
 // Only load domain routes in non-demo mode
 if (process.env.DEMO_MODE !== 'true') {

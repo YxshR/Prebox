@@ -21,6 +21,7 @@
     "test:ci": "jest --ci --coverage --watchAll=false"
   },
   "dependencies": {
+    "@auth0/auth0-react": "^2.4.0",
     "@headlessui/react": "^2.0.4",
     "@heroicons/react": "^2.2.0",
     "@radix-ui/react-slot": "^1.0.2",

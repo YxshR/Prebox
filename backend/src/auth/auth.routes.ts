@@ -8,6 +8,10 @@ import { EmailVerificationService } from './email-verification.service';
 import { GoogleOAuthService } from './google-oauth.service';
 import { AuthMiddleware } from './auth.middleware';
 import { UserRegistration, LoginCredentials } from '../shared/types';
+import emailVerificationRoutes from './email-verification.routes';
+import multiStepSignupRoutes from './multi-step-signup.routes';
+import auth0Routes from './auth0.routes';
+import loginRoutes from './login.routes';
 
 const router = Router();
 const isDemoMode = process.env.DEMO_MODE === 'true';
@@ -436,5 +440,17 @@ router.get('/me', authMiddleware.authenticate, (req: Request, res: Response) => 
     data: { user: (req as any).user }
   });
 });
+
+// Mount email verification routes
+router.use('/email', emailVerificationRoutes);
+
+// Mount multi-step phone signup routes
+router.use('/signup/phone', multiStepSignupRoutes);
+
+// Mount Auth0 routes
+router.use('/auth0', auth0Routes);
+
+// Mount enhanced login routes
+router.use('/login', loginRoutes);
 
 export default router;

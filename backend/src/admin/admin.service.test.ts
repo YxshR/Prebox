@@ -22,7 +22,7 @@ jest.mock('../database/database.service', () => ({
 }));
 
 describe('AdminUserService', () => {
-  let adminUserService: AdminUserService;
+  let adminUserService: AdminUserService;;
 
   beforeEach(() => {
     adminUserService = new AdminUserService();
