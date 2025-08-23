@@ -223,7 +223,7 @@ export class BrowserStorageCache<T> {
  */
 export class ApiCache {
   private memoryCache: MemoryCache<any>;
-  private storageCache: BrowserStorageCache<any>;
+  private storageCache: BrowserStorageCache<any> | null = null;
 
   constructor() {
     this.memoryCache = new MemoryCache({

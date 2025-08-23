@@ -55,7 +55,7 @@ export default function OptimizedVideo({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<LazyLoadObserver | null>(null);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>();
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (lazy && !priority && containerRef.current) {
@@ -185,12 +185,13 @@ export default function OptimizedVideo({
           >
             <video
               ref={videoRef}
+              {...mediaOptimization.videoSettings}
               width={width}
               height={height}
               poster={poster}
               autoPlay={autoPlay}
-              muted={muted}
               loop={loop}
+              muted={muted}
               playsInline
               preload="metadata"
               onLoadedData={handleLoadedData}
@@ -201,7 +202,6 @@ export default function OptimizedVideo({
               style={{
                 willChange: 'transform, opacity',
               }}
-              {...mediaOptimization.videoSettings}
             >
               <source src={src} type="video/mp4" />
               Your browser does not support the video tag.

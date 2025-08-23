@@ -24,6 +24,12 @@ export default function GoogleOAuthCallback({
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        // Check if searchParams is available
+        if (!searchParams) {
+          setError('No authentication parameters received');
+          return;
+        }
+
         // Check for error parameters
         const errorParam = searchParams.get('error');
         const errorDescription = searchParams.get('error_description');

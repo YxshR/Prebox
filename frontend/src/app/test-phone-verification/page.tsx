@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import PhoneVerification from '../../components/auth/PhoneVerification';
+import { PhoneVerification } from '../../components/auth/PhoneVerification';
 import { validateAndFormatPhone } from '../../lib/phoneValidation';
 
 export default function TestPhoneVerificationPage() {
@@ -105,12 +105,24 @@ export default function TestPhoneVerificationPage() {
         
         {showComponent && (
           <PhoneVerification
-            otpId={otpId}
-            phone={phone}
-            onSuccess={handleSuccess}
-            onResend={handleResend}
-            enableAuthentication={enableAuth}
-            maxAttempts={3}
+            onPhoneSubmit={(phoneNumber) => {
+              console.log('Phone submitted:', phoneNumber);
+              // Handle phone submission
+            }}
+            onOtpVerify={(otp) => {
+              console.log('OTP verified:', otp);
+              handleSuccess();
+            }}
+            onResendOtp={() => {
+              console.log('Resending OTP');
+              handleResend('new-otp-id');
+            }}
+            loading={false}
+            error={null}
+            showOtpInput={!!otpId}
+            onBack={() => {
+              console.log('Going back');
+            }}
           />
         )}
         

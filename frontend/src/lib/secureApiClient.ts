@@ -55,6 +55,10 @@ export class SecureApiClient {
       enableRateLimiting: true,
       enableInputSanitization: true,
       enableSecurityLogging: true,
+      customRateLimit: {
+        maxRequests: 100,
+        windowMs: 60000
+      },
       ...config
     };
   }

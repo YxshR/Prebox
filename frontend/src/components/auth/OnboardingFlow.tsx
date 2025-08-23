@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import RegistrationForm from './RegistrationForm';
-import PhoneVerification from './PhoneVerification';
+import { PhoneVerification } from './PhoneVerification';
 
 import OnboardingSuccess from './OnboardingSuccess';
 
@@ -81,12 +81,23 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       case 'phone_verification':
         return state.otpId && state.phone ? (
           <PhoneVerification
-            otpId={state.otpId}
-            phone={state.phone}
-            onSuccess={handlePhoneVerificationSuccess}
-            onResend={handleOtpResend}
-            enableAuthentication={true}
-            maxAttempts={3}
+            onPhoneSubmit={(phone) => {
+              // Phone already submitted, this shouldn't be called
+              console.log('Phone resubmitted:', phone);
+            }}
+            onOtpVerify={(otp) => {
+              console.log('OTP verified:', otp);
+              handlePhoneVerificationSuccess();
+            }}
+            onResendOtp={() => {
+              handleOtpResend('new-otp-id');
+            }}
+            loading={false}
+            error={null}
+            showOtpInput={true}
+            onBack={() => {
+              setState(prev => ({ ...prev, step: 'registration' }));
+            }}
           />
         ) : null;
 

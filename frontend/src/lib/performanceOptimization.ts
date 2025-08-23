@@ -200,7 +200,8 @@ export class PerformanceMonitor {
       new PerformanceObserver((list) => {
         const entries = list.getEntries();
         entries.forEach((entry) => {
-          console.log('FID:', entry.processingStart - entry.startTime);
+          const fidEntry = entry as any;
+          console.log('FID:', fidEntry.processingStart - fidEntry.startTime);
         });
       }).observe({ entryTypes: ['first-input'] });
 

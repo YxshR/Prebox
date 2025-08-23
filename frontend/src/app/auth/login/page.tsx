@@ -15,7 +15,7 @@ import { useApiState } from '../../../hooks/useApiState';
 import ErrorDisplay from '../../../components/ErrorDisplay';
 import LoadingState from '../../../components/LoadingState';
 import ConnectionStatus from '../../../components/ConnectionStatus';
-import GoogleAuthButton from '../../../components/auth/GoogleAuthButton';
+import { GoogleAuthButton } from '../../../components/auth/GoogleAuthButton';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -83,33 +83,43 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {/* Email Field */}
-              <Input
-                label="Email Address"
-                type="email"
-                placeholder="john@example.com"
-                {...register('email', {
-                  required: 'Email is required',
-                  pattern: {
-                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: 'Invalid email address',
-                  },
-                })}
-                error={errors.email?.message}
-                disabled={loginState.loading}
-              />
-
-              {/* Password Field */}
-              <div className="relative">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address
+                </label>
                 <Input
-                  label="Password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  {...register('password', {
-                    required: 'Password is required',
+                  id="email"
+                  type="email"
+                  placeholder="john@example.com"
+                  {...register('email', {
+                    required: 'Email is required',
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: 'Invalid email address',
+                    },
                   })}
-                  error={errors.password?.message}
                   disabled={loginState.loading}
                 />
+                {errors.email && (
+                  <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                )}
+              </div>
+
+              {/* Password Field */}
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    {...register('password', {
+                      required: 'Password is required',
+                    })}
+                    disabled={loginState.loading}
+                  />
                 <button
                   type="button"
                   className="absolute right-3 top-8 text-gray-400 hover:text-gray-600"
@@ -122,6 +132,10 @@ export default function LoginPage() {
                     <EyeIcon className="h-5 w-5" />
                   )}
                 </button>
+                </div>
+                {errors.password && (
+                  <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                )}
               </div>
 
               {/* Submit Button */}
@@ -143,7 +157,7 @@ export default function LoginPage() {
             {/* Links */}
             <div className="mt-6 text-center space-y-2">
               <p className="text-sm text-gray-600">
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <Link href="/auth/register" className="text-blue-600 hover:text-blue-700 font-medium">
                   Sign up
                 </Link>
@@ -168,8 +182,15 @@ export default function LoginPage() {
 
               <div className="mt-6">
                 <GoogleAuthButton 
-                  mode="login" 
-                  disabled={loginState.loading}
+                  onSuccess={(user) => {
+                    console.log('Google login successful:', user);
+                    // Handle successful Google login
+                    router.push('/dashboard');
+                  }}
+                  onError={(error) => {
+                    console.error('Google login failed:', error);
+                    toast.error(error);
+                  }}
                 />
               </div>
             </div>

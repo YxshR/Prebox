@@ -511,10 +511,11 @@ print(response.json())`
         </div>
       )}
       <SyntaxHighlighter 
-        code={example.code} 
         language={example.language}
         className="bg-transparent"
-      />
+      >
+        {example.code}
+      </SyntaxHighlighter>
     </div>
   );
 
@@ -668,10 +669,11 @@ print(response.json())`
                         </motion.button>
                       </div>
                       <SyntaxHighlighter 
-                        code={apiEndpoints[activeEndpoint].response} 
                         language="json"
                         className="bg-transparent"
-                      />
+                      >
+                        {apiEndpoints[activeEndpoint].response}
+                      </SyntaxHighlighter>
                     </div>
                   </div>
                 </div>

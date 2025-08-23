@@ -112,10 +112,10 @@ export default function SettingsPage() {
           
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="lg:col-span-1">
-              <LoadingSkeleton type="list" rows={4} />
+              <LoadingSkeleton lines={4} />
             </div>
             <div className="lg:col-span-3">
-              <LoadingSkeleton type="card" rows={3} />
+              <LoadingSkeleton lines={3} />
             </div>
           </div>
         </div>

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { mockApiService } from '../../lib/mock-api';
 import ConnectionStatus from '../../components/ConnectionStatus';
-import { Button } from '../../components/ui/button';
+import { Button } from '../../components/ui/Button';
 
 interface DashboardStats {
   totalEmails: number;
@@ -279,7 +279,7 @@ export default function DemoPage() {
               <div className="mt-2 text-sm text-blue-700">
                 <p>
                   This is a demo version of Prebox. The data shown here is simulated and works with built-in API routes.
-                  The frontend is now self-contained and doesn't require an external backend server.
+                  The frontend is now self-contained and doesn&apos;t require an external backend server.
                 </p>
               </div>
             </div>

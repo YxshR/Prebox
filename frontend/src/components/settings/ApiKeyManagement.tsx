@@ -11,7 +11,8 @@ import {
   PencilIcon,
   CheckIcon,
   ExclamationTriangleIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  KeyIcon
 } from '@heroicons/react/24/outline';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -97,7 +98,7 @@ export default function ApiKeyManagement() {
   };
 
   if (isLoading) {
-    return <LoadingSkeleton type="table" rows={5} />;
+    return <LoadingSkeleton />;
   }
 
   return (
@@ -113,7 +114,7 @@ export default function ApiKeyManagement() {
           </div>
           <Button
             onClick={() => setShowCreateForm(true)}
-            disabled={availableScopes && apiKeys.length >= availableScopes.limits.maxKeys}
+            disabled={!!(availableScopes && apiKeys.length >= availableScopes.limits.maxKeys)}
             className="flex items-center space-x-2"
           >
             <PlusIcon className="h-4 w-4" />
@@ -350,13 +351,17 @@ function CreateApiKeyForm({ availableScopes, onSubmit, onCancel }: CreateApiKeyF
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New API Key</h3>
       
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Input
-          label="API Key Name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="e.g., Production API Key"
-          required
-        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            API Key Name
+          </label>
+          <Input
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="e.g., Production API Key"
+            required
+          />
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -380,16 +385,20 @@ function CreateApiKeyForm({ availableScopes, onSubmit, onCancel }: CreateApiKeyF
           </div>
         </div>
 
-        <Input
-          label="Expiration Date (Optional)"
-          type="datetime-local"
-          value={formData.expiresAt ? formData.expiresAt.toISOString().slice(0, 16) : ''}
-          onChange={(e) => setFormData({ 
-            ...formData, 
-            expiresAt: e.target.value ? new Date(e.target.value) : undefined 
-          })}
-          helperText="Leave empty for no expiration"
-        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Expiration Date (Optional)
+          </label>
+          <Input
+            type="datetime-local"
+            value={formData.expiresAt ? formData.expiresAt.toISOString().slice(0, 16) : ''}
+            onChange={(e) => setFormData({ 
+              ...formData, 
+              expiresAt: e.target.value ? new Date(e.target.value) : undefined 
+            })}
+          />
+          <p className="text-gray-500 text-sm mt-1">Leave empty for no expiration</p>
+        </div>
 
         <div className="flex items-center justify-end space-x-3 pt-4">
           <Button variant="outline" onClick={onCancel} type="button">

@@ -41,12 +41,12 @@ export const GracefulDegradation: React.FC<GracefulDegradationProps> = ({
     }, 5000);
 
     // Periodic retry when in degraded state
-    const retryInterval = setInterval(() => {
+    const retryInterval: NodeJS.Timeout = setInterval(() => {
       if (showFallback) {
         // Attempt to check connection
         connectionMonitor.onStatusChange(() => {})(); // Trigger a connection check
       }
-    }, retryInterval);
+    }, 10000); // Retry every 10 seconds
 
     return () => {
       unsubscribe();
@@ -69,7 +69,7 @@ export const GracefulDegradation: React.FC<GracefulDegradationProps> = ({
       <div className="min-h-screen bg-gray-50 flex flex-col">
         {showConnectionStatus && (
           <div className="bg-white border-b px-4 py-2">
-            <ConnectionStatus showDetails={true} />
+            <ConnectionStatus />
           </div>
         )}
         

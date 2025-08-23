@@ -120,11 +120,11 @@ export function OfflineCapable({
 
       {/* Main content */}
       <div>
-        {React.cloneElement(children as React.ReactElement, {
+        {React.cloneElement(children as React.ReactElement<any>, {
           isOffline: !status.isOnline,
           addPendingAction,
           pendingActionsCount: pendingActions.length
-        })}
+        } as any)}
       </div>
 
       {/* Last sync time */}
@@ -272,11 +272,11 @@ export function OfflineCapableForm({
         </div>
       )}
       
-      {React.cloneElement(children as React.ReactElement, {
+      {React.cloneElement(children as React.ReactElement<any>, {
         onSubmit: handleSubmit,
         isSubmitting,
         isOffline: !isOnline
-      })}
+      } as any)}
     </div>
   );
 }

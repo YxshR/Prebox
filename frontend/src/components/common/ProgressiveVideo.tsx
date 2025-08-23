@@ -59,7 +59,7 @@ export default function ProgressiveVideo({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<LazyLoadObserver | null>(null);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>();
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Detect connection quality and select appropriate video source
   const getOptimalSource = useCallback(() => {

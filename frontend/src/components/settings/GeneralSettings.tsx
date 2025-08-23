@@ -86,7 +86,7 @@ export default function GeneralSettings() {
   };
 
   if (isLoading) {
-    return <LoadingSkeleton type="card" rows={4} />;
+    return <LoadingSkeleton />;
   }
 
   return (
@@ -103,30 +103,46 @@ export default function GeneralSettings() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Input
-            label="First Name"
-            placeholder="Enter your first name"
-            // This would be connected to user profile data
-          />
-          <Input
-            label="Last Name"
-            placeholder="Enter your last name"
-            // This would be connected to user profile data
-          />
-          <Input
-            label="Email Address"
-            type="email"
-            placeholder="your@email.com"
-            disabled
-            helperText="Contact support to change your email address"
-            // This would be connected to user profile data
-          />
-          <Input
-            label="Phone Number"
-            type="tel"
-            placeholder="+1 (555) 123-4567"
-            // This would be connected to user profile data
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              First Name
+            </label>
+            <Input
+              placeholder="Enter your first name"
+              // This would be connected to user profile data
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Last Name
+            </label>
+            <Input
+              placeholder="Enter your last name"
+              // This would be connected to user profile data
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email Address
+            </label>
+            <Input
+              type="email"
+              placeholder="your@email.com"
+              disabled
+              // This would be connected to user profile data
+            />
+            <p className="text-sm text-gray-500 mt-1">Contact support to change your email address</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone Number
+            </label>
+            <Input
+              type="tel"
+              placeholder="+1 (555) 123-4567"
+              // This would be connected to user profile data
+            />
+          </div>
         </div>
       </motion.div>
 

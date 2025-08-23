@@ -31,7 +31,7 @@ export function usePerformanceMonitoring(options: UsePerformanceMonitoringOption
 
   const performanceMonitor = useRef(PerformanceMonitor.getInstance());
   const metricsRef = useRef<PerformanceMetrics>({});
-  const reportIntervalRef = useRef<NodeJS.Timeout>();
+  const reportIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Start timing for custom metrics
   const startTiming = useCallback((label: string) => {
@@ -172,7 +172,7 @@ export function usePerformanceMonitoring(options: UsePerformanceMonitoringOption
  */
 export function useAnimationPerformance() {
   const frameTimeRef = useRef<number[]>([]);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | null>(null);
 
   const startMonitoring = useCallback(() => {
     let lastTime = performance.now();

@@ -78,7 +78,7 @@ export const authApi = {
       SecurityLogger.log('AUTH_REGISTER_SUCCESS', 'User registration successful', {
         email: data.email
       });
-      return response.data;
+      return response.data as RegisterResponse;
     } else {
       SecurityLogger.log('AUTH_REGISTER_FAILED', 'User registration failed', {
         email: data.email,
@@ -106,7 +106,7 @@ export const authApi = {
       SecurityLogger.log('AUTH_LOGIN_SUCCESS', 'User login successful', {
         email: data.email
       });
-      return response.data;
+      return response.data as AuthResponse;
     } else {
       SecurityLogger.log('AUTH_LOGIN_FAILED', 'User login failed', {
         email: data.email,
@@ -137,7 +137,7 @@ export const authApi = {
         userId,
         phone
       });
-      return response.data;
+      return response.data as { otpId: string };
     } else {
       SecurityLogger.log('AUTH_OTP_SEND_FAILED', 'OTP send failed', {
         userId,
@@ -166,7 +166,7 @@ export const authApi = {
       SecurityLogger.log('AUTH_OTP_VERIFY_SUCCESS', 'OTP verification successful', {
         otpId
       });
-      return response.data;
+      return response.data as { verified: boolean };
     } else {
       SecurityLogger.log('AUTH_OTP_VERIFY_FAILED', 'OTP verification failed', {
         otpId,
@@ -194,7 +194,7 @@ export const authApi = {
       SecurityLogger.log('AUTH_OTP_AUTH_SUCCESS', 'OTP authentication successful', {
         otpId
       });
-      return response.data;
+      return response.data as AuthResponse;
     } else {
       SecurityLogger.log('AUTH_OTP_AUTH_FAILED', 'OTP authentication failed', {
         otpId,
@@ -218,7 +218,7 @@ export const authApi = {
       SecurityLogger.log('AUTH_OTP_RESEND_SUCCESS', 'OTP resend successful', {
         otpId
       });
-      return response.data;
+      return response.data as { otpId: string };
     } else {
       SecurityLogger.log('AUTH_OTP_RESEND_FAILED', 'OTP resend failed', {
         otpId,
@@ -236,7 +236,7 @@ export const authApi = {
     
     if (response.success) {
       SecurityLogger.log('AUTH_EMAIL_VERIFY_SUCCESS', 'Email verification successful');
-      return response.data;
+      return response.data as { verified: boolean };
     } else {
       SecurityLogger.log('AUTH_EMAIL_VERIFY_FAILED', 'Email verification failed', {
         error: response.error
@@ -253,7 +253,7 @@ export const authApi = {
     
     if (response.success) {
       SecurityLogger.log('AUTH_EMAIL_RESEND_SUCCESS', 'Email verification resend successful');
-      return response.data;
+      return response.data as { verificationId: string };
     } else {
       SecurityLogger.log('AUTH_EMAIL_RESEND_FAILED', 'Email verification resend failed', {
         error: response.error
@@ -267,7 +267,7 @@ export const authApi = {
     const response = await secureApiClient.get('/auth/me');
     
     if (response.success) {
-      return response.data.user;
+      return (response.data as any).user;
     } else {
       throw new Error(response.error?.message || 'Failed to get user data');
     }
@@ -281,13 +281,59 @@ export const authApi = {
     
     if (response.success) {
       SecurityLogger.log('AUTH_GOOGLE_SUCCESS', 'Google OAuth authentication successful');
-      return response.data;
+      return response.data as AuthResponse;
     } else {
       SecurityLogger.log('AUTH_GOOGLE_FAILED', 'Google OAuth authentication failed', {
         error: response.error
       });
       throw new Error(response.error?.message || 'Google authentication failed');
     }
+  },
+
+  // Send email verification
+  sendEmailVerification: async (email: string): Promise<{ verificationId: string }> => {
+    const emailValidation = InputValidator.validateEmail(email);
+    if (!emailValidation.isValid) {
+      throw new Error(emailValidation.error);
+    }
+
+    SecurityLogger.log('AUTH_EMAIL_VERIFICATION_SEND_ATTEMPT', 'Email verification send attempt', { email });
+
+    const response = await secureApiClient.post('/auth/send-email-verification', { email });
+    
+    if (response.success) {
+      SecurityLogger.log('AUTH_EMAIL_VERIFICATION_SEND_SUCCESS', 'Email verification sent successfully', { email });
+      return response.data as { verificationId: string };
+    } else {
+      SecurityLogger.log('AUTH_EMAIL_VERIFICATION_SEND_FAILED', 'Email verification send failed', {
+        email,
+        error: response.error
+      });
+      throw new Error(response.error?.message || 'Failed to send email verification');
+    }
+  },
+
+  // Verify email with code
+  verifyEmailWithCode: async (verificationId: string, code: string): Promise<{ verified: boolean }> => {
+    SecurityLogger.log('AUTH_EMAIL_CODE_VERIFY_ATTEMPT', 'Email code verification attempt', { verificationId });
+
+    const response = await secureApiClient.post('/auth/verify-email-code', { verificationId, code });
+    
+    if (response.success) {
+      SecurityLogger.log('AUTH_EMAIL_CODE_VERIFY_SUCCESS', 'Email code verification successful', { verificationId });
+      return response.data as { verified: boolean };
+    } else {
+      SecurityLogger.log('AUTH_EMAIL_CODE_VERIFY_FAILED', 'Email code verification failed', {
+        verificationId,
+        error: response.error
+      });
+      throw new Error(response.error?.message || 'Email verification failed');
+    }
+  },
+
+  // Authenticate with OTP (for phone login)
+  authenticateWithOTP: async (otpId: string, code: string): Promise<AuthResponse> => {
+    return authApi.verifyOTPWithAuth(otpId, code);
   },
 
   // Logout with security logging
@@ -309,3 +355,14 @@ export const authApi = {
     }
   },
 };
+
+// Export individual functions for easier imports
+export const register = authApi.register;
+export const login = authApi.login;
+export const sendOTP = authApi.sendOTP;
+export const verifyOTP = authApi.verifyOTP;
+export const authenticateWithOTP = authApi.authenticateWithOTP;
+export const sendEmailVerification = authApi.sendEmailVerification;
+export const verifyEmail = authApi.verifyEmailWithCode;
+export const googleAuth = authApi.googleAuth;
+export const logout = authApi.logout;

@@ -11,7 +11,7 @@ import {
   preloadAllHomeComponents 
 } from '../components/home/LazyComponents';
 import { useBundleAnalyzer } from '../lib/bundleAnalyzer';
-import { usePerformanceMonitoring } from '../hooks/usePerformanceMonitoring';
+import { usePerformanceMonitoring, useAnimationPerformance } from '../hooks/usePerformanceMonitoring';
 import { serviceWorkerManager } from '../lib/serviceWorker';
 import { AnimatedSection, InteractiveElement, StaggeredContainer, FloatingActionButton } from '../components/common/PremiumAnimations';
 import { ErrorHandlingProvider, useErrorHandling, useApiErrorHandler } from '../components/common/ErrorHandlingProvider';
@@ -34,15 +34,11 @@ export default function Home() {
   // Performance monitoring and optimization
   const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(false);
   const { analyze: analyzeBundleSize, getPerformanceImpact } = useBundleAnalyzer();
-  const { startTiming, endTiming, getFrameRate } = usePerformanceMonitoring({
+  const { startTiming, endTiming } = usePerformanceMonitoring({
     enableWebVitals: true,
     enableCustomMetrics: true,
-    enableFrameRateMonitoring: true,
-    frameRateThreshold: 55,
-    onPerformanceIssue: (issue) => {
-      console.warn('Performance issue detected:', issue);
-    },
   });
+  const { getFrameRate } = useAnimationPerformance();
 
   useEffect(() => {
     // Start performance monitoring
@@ -99,7 +95,7 @@ export default function Home() {
   }, [router, startTiming, endTiming, analyzeBundleSize, getPerformanceImpact]);
 
   const handleSignupClick = () => {
-    router.push('/auth/register');
+    router.push('/auth/signup');
   };
 
   const scrollToTop = () => {
@@ -128,7 +124,7 @@ export default function Home() {
                 <div className="flex items-center space-x-4">
                   <InteractiveElement type="button">
                     <Link
-                      href="/auth/register"
+                      href="/auth/signup"
                       className="text-white/80 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
                     >
                       Sign Up
@@ -161,7 +157,7 @@ export default function Home() {
           {/* Interactive Multimedia Showcase - Works offline */}
           <AnimatedSection animation="fadeUp" delay={0.3} threshold={0.2}>
             <LazyMultimediaShowcaseWrapper 
-              onFeatureSelect={(featureId) => {
+              onFeatureSelect={(featureId: string) => {
                 console.log('Selected feature:', featureId);
                 // Could track analytics or navigate to specific demo
               }}
@@ -172,10 +168,10 @@ export default function Home() {
           <AnimatedSection animation="scale" delay={0.4} threshold={0.2}>
             <CriticalFeature featureName="Pricing">
               <LazyAnimatedPricingSectionWrapper 
-                onPlanSelect={(planId, amount) => {
+                onPlanSelect={(planId: string, amount: number) => {
                   console.log('Selected plan:', planId, 'Amount:', amount);
                   // Navigate to signup or payment flow
-                  router.push(`/auth/register?plan=${planId}&amount=${amount}`);
+                  router.push(`/auth/signup?plan=${planId}&amount=${amount}`);
                 }}
               />
             </CriticalFeature>
@@ -239,7 +235,7 @@ export default function Home() {
                 onClick={() => setShowPerformanceDashboard(true)}
                 icon={<ChartBarIcon className="w-6 h-6" />}
                 label="Performance Dashboard"
-                position="static"
+                position="bottom-right"
                 className="bg-purple-600 hover:bg-purple-700"
               />
             )}
@@ -249,7 +245,7 @@ export default function Home() {
               onClick={scrollToTop}
               icon={<ArrowUpIcon className="w-6 h-6" />}
               label="Scroll to top"
-              position="static"
+              position="bottom-right"
             />
           </div>
 

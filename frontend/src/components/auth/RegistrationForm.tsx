@@ -8,7 +8,7 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { RegisterData, authApi } from '../../lib/auth';
 import toast from 'react-hot-toast';
-import GoogleAuthButton from './GoogleAuthButton';
+import { GoogleAuthButton } from './GoogleAuthButton';
 
 interface RegistrationFormProps {
   onSuccess: (data: { userId: string; email: string; otpId?: string; registrationMethod: string; phone?: string }) => void;
@@ -87,35 +87,53 @@ export default function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Name Fields */}
           <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="First Name"
-              placeholder="John"
-              {...register('firstName')}
-              error={errors.firstName?.message}
-            />
-            <Input
-              label="Last Name"
-              placeholder="Doe"
-              {...register('lastName')}
-              error={errors.lastName?.message}
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                First Name
+              </label>
+              <Input
+                placeholder="John"
+                {...register('firstName')}
+              />
+              {errors.firstName && (
+                <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Last Name
+              </label>
+              <Input
+                placeholder="Doe"
+                {...register('lastName')}
+              />
+              {errors.lastName && (
+                <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>
+              )}
+            </div>
           </div>
 
           {/* Phone Field */}
-          <Input
-            label="Phone Number"
-            type="tel"
-            placeholder="+91 98765 43210"
-            {...register('phone', {
-              required: 'Phone number is required',
-              pattern: {
-                value: /^[\+]?[1-9][\d]{0,15}$/,
-                message: 'Invalid phone number',
-              },
-            })}
-            error={errors.phone?.message}
-            helperText="We'll send you an OTP for verification"
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone Number
+            </label>
+            <Input
+              type="tel"
+              placeholder="+91 98765 43210"
+              {...register('phone', {
+                required: 'Phone number is required',
+                pattern: {
+                  value: /^[\+]?[1-9][\d]{0,15}$/,
+                  message: 'Invalid phone number',
+                },
+              })}
+            />
+            {errors.phone && (
+              <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
+            )}
+            <p className="text-gray-500 text-sm mt-1">We'll send you an OTP for verification</p>
+          </div>
 
           {/* Submit Button */}
           <Button
@@ -141,8 +159,19 @@ export default function RegistrationForm({ onSuccess }: RegistrationFormProps) {
 
           <div className="mt-6">
             <GoogleAuthButton 
-              mode="signup" 
-              disabled={loading}
+              onSuccess={(user) => {
+                console.log('Google signup successful:', user);
+                // Handle successful Google signup
+                onSuccess({
+                  userId: 'google-user-id',
+                  email: user.email,
+                  registrationMethod: 'google',
+                });
+              }}
+              onError={(error) => {
+                console.error('Google signup failed:', error);
+                toast.error(error);
+              }}
             />
           </div>
         </div>

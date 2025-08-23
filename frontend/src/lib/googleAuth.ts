@@ -54,16 +54,17 @@ export class GoogleOAuthService {
         SecurityLogger.log('GOOGLE_AUTH_SUCCESS', 'Google OAuth authentication successful');
         
         // Store tokens if provided
-        if (response.data.accessToken) {
-          localStorage.setItem('accessToken', response.data.accessToken);
+        const data = response.data as any;
+        if (data.accessToken) {
+          localStorage.setItem('accessToken', data.accessToken);
         }
-        if (response.data.refreshToken) {
-          localStorage.setItem('refreshToken', response.data.refreshToken);
+        if (data.refreshToken) {
+          localStorage.setItem('refreshToken', data.refreshToken);
         }
 
         return {
           success: true,
-          user: response.data.user
+          user: data.user
         };
       } else {
         SecurityLogger.log('GOOGLE_AUTH_FAILED', 'Google OAuth authentication failed', {

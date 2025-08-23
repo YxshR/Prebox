@@ -353,7 +353,7 @@ export default function UsageOverview() {
     };
 
     if (isLoading) {
-        return <LoadingSkeleton type="card" rows={4} />;
+        return <LoadingSkeleton lines={4} height="h-16" className="space-y-4" />;
     }
 
     return (
@@ -626,15 +626,14 @@ export default function UsageOverview() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                 <div className="text-center">
                                     <ProgressRing
-                                        percentage={usageStats.percentageUsed.emails}
-                                        color={getUsageColor(usageStats.percentageUsed.emails) === 'red' ? '#ef4444' : 
-                                               getUsageColor(usageStats.percentageUsed.emails) === 'yellow' ? '#f59e0b' : '#10b981'}
+                                        progress={usageStats.percentageUsed.emails}
                                         size={100}
-                                        showPercentage={false}
+                                        className={`${getUsageColor(usageStats.percentageUsed.emails) === 'red' ? 'text-red-500' : 
+                                               getUsageColor(usageStats.percentageUsed.emails) === 'yellow' ? 'text-yellow-500' : 'text-green-500'}`}
                                     >
                                         <div className="text-center">
                                             <div className="text-lg font-bold text-gray-900">
-                                                <AnimatedCounter value={usageStats.percentageUsed.emails} decimals={1} suffix="%" />
+                                                {usageStats.percentageUsed.emails.toFixed(1)}%
                                             </div>
                                             <div className="text-xs text-gray-600">Used</div>
                                         </div>
@@ -649,15 +648,14 @@ export default function UsageOverview() {
 
                                 <div className="text-center">
                                     <ProgressRing
-                                        percentage={usageStats.percentageUsed.recipients}
-                                        color={getUsageColor(usageStats.percentageUsed.recipients) === 'red' ? '#ef4444' : 
-                                               getUsageColor(usageStats.percentageUsed.recipients) === 'yellow' ? '#f59e0b' : '#10b981'}
+                                        progress={usageStats.percentageUsed.recipients}
                                         size={100}
-                                        showPercentage={false}
+                                        className={`${getUsageColor(usageStats.percentageUsed.recipients) === 'red' ? 'text-red-500' : 
+                                               getUsageColor(usageStats.percentageUsed.recipients) === 'yellow' ? 'text-yellow-500' : 'text-green-500'}`}
                                     >
                                         <div className="text-center">
                                             <div className="text-lg font-bold text-gray-900">
-                                                <AnimatedCounter value={usageStats.percentageUsed.recipients} decimals={1} suffix="%" />
+                                                {usageStats.percentageUsed.recipients.toFixed(1)}%
                                             </div>
                                             <div className="text-xs text-gray-600">Used</div>
                                         </div>
@@ -672,15 +670,14 @@ export default function UsageOverview() {
 
                                 <div className="text-center">
                                     <ProgressRing
-                                        percentage={usageStats.percentageUsed.dailyEmails}
-                                        color={getUsageColor(usageStats.percentageUsed.dailyEmails) === 'red' ? '#ef4444' : 
-                                               getUsageColor(usageStats.percentageUsed.dailyEmails) === 'yellow' ? '#f59e0b' : '#10b981'}
+                                        progress={usageStats.percentageUsed.dailyEmails}
                                         size={100}
-                                        showPercentage={false}
+                                        className={`${getUsageColor(usageStats.percentageUsed.dailyEmails) === 'red' ? 'text-red-500' : 
+                                               getUsageColor(usageStats.percentageUsed.dailyEmails) === 'yellow' ? 'text-yellow-500' : 'text-green-500'}`}
                                     >
                                         <div className="text-center">
                                             <div className="text-lg font-bold text-gray-900">
-                                                <AnimatedCounter value={usageStats.percentageUsed.dailyEmails} decimals={1} suffix="%" />
+                                                {usageStats.percentageUsed.dailyEmails.toFixed(1)}%
                                             </div>
                                             <div className="text-xs text-gray-600">Used</div>
                                         </div>

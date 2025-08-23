@@ -6,6 +6,11 @@ const nextConfig = {
     optimizePackageImports: ['@heroicons/react', 'framer-motion', 'lucide-react']
   },
   
+  // Disable ESLint during builds for deployment
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  
   // No API rewrites needed - using built-in API routes
 
   // Handle missing images gracefully

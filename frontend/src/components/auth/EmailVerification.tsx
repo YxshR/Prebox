@@ -1,142 +1,150 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { CheckCircleIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
-import Button from '../ui/Button';
-import { authApi } from '../../lib/auth';
-import toast from 'react-hot-toast';
+import React, { useState } from 'react';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 
 interface EmailVerificationProps {
-  email: string;
-  onSuccess: () => void;
-  isVerified?: boolean;
+  onEmailSubmit: (email: string) => void;
+  onCodeVerify: (code: string) => void;
+  onResendCode: () => void;
+  loading: boolean;
+  error: string | null;
+  showCodeInput: boolean;
+  onBack: () => void;
 }
 
-export default function EmailVerification({ email, onSuccess, isVerified = false }: EmailVerificationProps) {
-  const [loading, setLoading] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
+export function EmailVerification({
+  onEmailSubmit,
+  onCodeVerify,
+  onResendCode,
+  loading,
+  error,
+  showCodeInput,
+  onBack
+}: EmailVerificationProps) {
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
 
-  const handleResendEmail = async () => {
-    setLoading(true);
-    try {
-      await authApi.resendEmailVerification();
-      setEmailSent(true);
-      toast.success('Verification email sent! Please check your inbox.');
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error?.message || 'Failed to send verification email. Please try again.';
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
+  const handleEmailSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onEmailSubmit(email);
   };
 
-  if (isVerified) {
+  const handleCodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onCodeVerify(code);
+  };
+
+  if (showCodeInput) {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md mx-auto"
-      >
-        <div className="bg-white shadow-lg rounded-lg p-8 text-center">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4"
-          >
-            <CheckCircleIcon className="w-8 h-8 text-green-600" />
-          </motion.div>
-          
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Email Verified!</h2>
-          <p className="text-gray-600 mb-6">
-            Your email address has been successfully verified.
+      <div className="space-y-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Verify Your Email</h2>
+          <p className="text-gray-600">
+            We sent a verification code to <strong>{email}</strong>
           </p>
-          
-          <Button onClick={onSuccess} className="w-full" size="lg">
-            Continue to Dashboard
-          </Button>
         </div>
-      </motion.div>
+
+        <form onSubmit={handleCodeSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Verification Code
+            </label>
+            <Input
+              type="text"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="Enter 6-digit code"
+              maxLength={6}
+              required
+            />
+          </div>
+
+          {error && (
+            <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
+              {error}
+            </div>
+          )}
+
+          <div className="flex space-x-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onBack}
+              className="flex-1"
+            >
+              Back
+            </Button>
+            <Button
+              type="submit"
+              loading={loading}
+              className="flex-1"
+            >
+              Verify
+            </Button>
+          </div>
+        </form>
+
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={onResendCode}
+            disabled={loading}
+            className="text-sm text-blue-600 hover:text-blue-500 disabled:opacity-50"
+          >
+            Didn't receive the code? Resend
+          </button>
+        </div>
+      </div>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="w-full max-w-md mx-auto"
-    >
-      <div className="bg-white shadow-lg rounded-lg p-8">
-        <div className="text-center mb-8">
-          <motion.div
-            animate={{ 
-              scale: [1, 1.1, 1],
-              rotate: [0, 5, -5, 0]
-            }}
-            transition={{ 
-              duration: 2,
-              repeat: Infinity,
-              repeatType: 'reverse'
-            }}
-            className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4"
-          >
-            <EnvelopeIcon className="w-8 h-8 text-blue-600" />
-          </motion.div>
-          
-          <h2 className="text-3xl font-bold text-gray-900">Check Your Email</h2>
-          <p className="text-gray-600 mt-2">
-            We've sent a verification link to
-          </p>
-          <p className="text-gray-900 font-medium break-all">
-            {email}
-          </p>
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Verify Your Email</h2>
+        <p className="text-gray-600">Enter your email address to receive a verification code</p>
+      </div>
+
+      <form onSubmit={handleEmailSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Email Address
+          </label>
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter your email address"
+            required
+          />
         </div>
 
-        <div className="space-y-6">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-medium text-blue-900 mb-2">Next Steps:</h3>
-            <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-              <li>Check your email inbox</li>
-              <li>Click the verification link</li>
-              <li>Return here to continue</li>
-            </ol>
+        {error && (
+          <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
+            {error}
           </div>
+        )}
 
-          {/* Resend Email Button */}
-          <div className="text-center">
-            <p className="text-sm text-gray-600 mb-3">
-              Didn't receive the email?
-            </p>
-            <Button
-              onClick={handleResendEmail}
-              variant="outline"
-              loading={loading}
-              disabled={emailSent}
-            >
-              {emailSent ? 'Email Sent!' : 'Resend Verification Email'}
-            </Button>
-          </div>
-
-          {/* Help Text */}
-          <div className="text-center">
-            <p className="text-xs text-gray-500">
-              Check your spam folder if you don't see the email in your inbox.
-            </p>
-          </div>
-
-          {/* Manual Check Button */}
+        <div className="flex space-x-3">
           <Button
-            onClick={onSuccess}
-            variant="ghost"
-            className="w-full"
+            type="button"
+            variant="outline"
+            onClick={onBack}
+            className="flex-1"
           >
-            I've verified my email
+            Back
+          </Button>
+          <Button
+            type="submit"
+            loading={loading}
+            className="flex-1"
+          >
+            Send Code
           </Button>
         </div>
-      </div>
-    </motion.div>
+      </form>
+    </div>
   );
 }

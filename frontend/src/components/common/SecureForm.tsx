@@ -58,7 +58,7 @@ export function SecureForm<T extends FieldValues>({
   onError,
   children,
   securityConfig = {},
-  fieldConfigs = {},
+  fieldConfigs = {} as Record<Path<T>, SecureFieldConfig>,
   className = '',
   formId = 'secure-form',
   ...formProps
@@ -105,18 +105,19 @@ export function SecureForm<T extends FieldValues>({
    * Validate and sanitize form data
    */
   const processFormData = useCallback((data: T): { isValid: boolean; sanitizedData?: T; errors?: Record<string, string> } => {
-    const validationRules: Record<string, (value: any) => { isValid: boolean; error?: string }> = {};
+    const validationRules: any = {};
 
     // Build validation rules from field configs
     Object.entries(fieldConfigs).forEach(([fieldName, config]) => {
+      const fieldConfig = config as SecureFieldConfig;
       validationRules[fieldName] = (value: any) => {
         // Custom validator takes precedence
-        if (config.customValidator) {
-          return config.customValidator(value);
+        if (fieldConfig.customValidator) {
+          return fieldConfig.customValidator(value);
         }
 
         // Built-in validators based on type
-        switch (config.type) {
+        switch (fieldConfig.type) {
           case 'email':
             return InputValidator.validateEmail(value);
           case 'phone':
@@ -129,16 +130,16 @@ export function SecureForm<T extends FieldValues>({
             return InputValidator.validateUrl(value);
           default:
             // Basic validation for text fields
-            if (config.required && (!value || value.trim() === '')) {
+            if (fieldConfig.required && (!value || value.trim() === '')) {
               return { isValid: false, error: 'This field is required' };
             }
-            if (config.minLength && value.length < config.minLength) {
-              return { isValid: false, error: `Minimum length is ${config.minLength} characters` };
+            if (fieldConfig.minLength && value.length < fieldConfig.minLength) {
+              return { isValid: false, error: `Minimum length is ${fieldConfig.minLength} characters` };
             }
-            if (config.maxLength && value.length > config.maxLength) {
-              return { isValid: false, error: `Maximum length is ${config.maxLength} characters` };
+            if (fieldConfig.maxLength && value.length > fieldConfig.maxLength) {
+              return { isValid: false, error: `Maximum length is ${fieldConfig.maxLength} characters` };
             }
-            if (config.pattern && !config.pattern.test(value)) {
+            if (fieldConfig.pattern && !fieldConfig.pattern.test(value)) {
               return { isValid: false, error: 'Invalid format' };
             }
             return { isValid: true };

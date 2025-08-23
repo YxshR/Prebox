@@ -60,7 +60,7 @@ export class SecurityMonitoringApi {
    */
   static async getSecurityMetrics(hours: number = 24): Promise<SecurityMetrics> {
     const response = await apiClient.get(`/security/metrics?hours=${hours}`);
-    return response.data;
+    return response.data as SecurityMetrics;
   }
 
   /**
@@ -85,7 +85,7 @@ export class SecurityMonitoringApi {
     });
 
     const response = await apiClient.get(`/security/threats?${queryParams}`);
-    return response.data;
+    return response.data as { alerts: ThreatAlert[]; total: number; pagination: { limit: number; offset: number; } };
   }
 
   /**
@@ -112,7 +112,7 @@ export class SecurityMonitoringApi {
     });
 
     const response = await apiClient.get(`/security/audit-logs?${queryParams}`);
-    return response.data;
+    return response.data as { logs: AuditLogEntry[]; total: number; pagination: { limit: number; offset: number; } };
   }
 
   /**
@@ -125,7 +125,7 @@ export class SecurityMonitoringApi {
     const response = await apiClient.post('/security/gdpr/export', {
       targetUserId
     });
-    return response.data;
+    return response.data as { requestId: string; message: string; };
   }
 
   /**
@@ -139,7 +139,7 @@ export class SecurityMonitoringApi {
     message: string;
   }> {
     const response = await apiClient.post('/security/gdpr/delete', params);
-    return response.data;
+    return response.data as { requestId: string; message: string; };
   }
 
   /**
@@ -150,7 +150,7 @@ export class SecurityMonitoringApi {
     granted: boolean;
   }): Promise<{ message: string }> {
     const response = await apiClient.post('/security/gdpr/consent', params);
-    return response.data;
+    return response.data as { message: string; };
   }
 
   /**
@@ -161,7 +161,7 @@ export class SecurityMonitoringApi {
   }> {
     const queryParams = targetUserId ? `?targetUserId=${targetUserId}` : '';
     const response = await apiClient.get(`/security/gdpr/consent${queryParams}`);
-    return response.data;
+    return response.data as { consentRecords: ConsentRecord[]; };
   }
 
   /**
@@ -173,7 +173,7 @@ export class SecurityMonitoringApi {
     durationHours?: number;
   }): Promise<{ message: string }> {
     const response = await apiClient.post('/security/block-ip', params);
-    return response.data;
+    return response.data as { message: string; };
   }
 
   /**
@@ -184,7 +184,7 @@ export class SecurityMonitoringApi {
     archivedLogs: number;
   }> {
     const response = await apiClient.post('/security/cleanup');
-    return response.data;
+    return response.data as { message: string; archivedLogs: number; };
   }
 }
 

@@ -189,7 +189,7 @@ export default function NotificationSettings() {
   }, {} as Record<string, NotificationPreference[]>);
 
   if (isLoading) {
-    return <LoadingSkeleton type="card" rows={4} />;
+    return <LoadingSkeleton lines={4} height="h-16" className="space-y-4" />;
   }
 
   return (
@@ -225,13 +225,15 @@ export default function NotificationSettings() {
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Webhook URL (Optional)
+            </label>
             <Input
-              label="Webhook URL (Optional)"
               value={settings.webhookUrl || ''}
               onChange={(e) => setSettings(prev => ({ ...prev, webhookUrl: e.target.value }))}
               placeholder="https://your-app.com/webhooks/email-notifications"
-              helperText="Receive real-time notifications via HTTP POST requests"
             />
+            <p className="text-sm text-gray-500 mt-1">Receive real-time notifications via HTTP POST requests</p>
             {settings.webhookUrl && (
               <div className="mt-2">
                 <Button

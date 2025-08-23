@@ -1,4 +1,4 @@
-import { apiClient } from '../lib/apiClient';
+import apiClient from '../lib/api';
 
 export interface ConnectivityStatus {
   isOnline: boolean;
@@ -44,14 +44,11 @@ export class AIConnectivityService {
       const endpoint = useCache ? '/ai-templates/connectivity/status' : '/ai-templates/connectivity/check';
       const method = useCache ? 'GET' : 'POST';
       
-      const response = await apiClient.request(endpoint, {
-        method,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = method === 'GET' 
+        ? await apiClient.get(endpoint)
+        : await apiClient.post(endpoint, {});
 
-      if (response.success && response.data) {
+      if (response.data) {
         const status: ConnectivityStatus = {
           ...response.data,
           lastChecked: new Date(response.data.lastChecked)
@@ -95,9 +92,9 @@ export class AIConnectivityService {
    */
   async validateApiKeys(): Promise<AIServiceValidation> {
     try {
-      const response = await apiClient.request('/ai-templates/connectivity/validate-keys');
+      const response = await apiClient.get('/ai-templates/connectivity/validate-keys');
 
-      if (response.success && response.data) {
+      if (response.data) {
         return response.data;
       }
 

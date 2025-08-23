@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Alert, AlertDescription } from './ui/alert';
-import { Button } from './ui/button';
+import { Button } from './ui/Button';
 
 interface ConnectionStatusProps {
   onRetry?: () => void;
@@ -60,7 +60,7 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ onRetry }) =
       <Alert className="mb-4 border-orange-200 bg-orange-50">
         <AlertDescription className="text-orange-800">
           <div className="flex items-center justify-between">
-            <span>You're currently offline. Some features may not work properly.</span>
+            <span>You&apos;re currently offline. Some features may not work properly.</span>
             <Button 
               variant="outline" 
               size="sm" 

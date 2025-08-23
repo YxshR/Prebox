@@ -82,7 +82,6 @@ export function SecurityDashboard({ className }: SecurityDashboardProps) {
       <ErrorDisplay 
         error={error} 
         onRetry={loadSecurityData}
-        title="Failed to load security dashboard"
       />
     );
   }

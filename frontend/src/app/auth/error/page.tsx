@@ -9,8 +9,8 @@ function ErrorPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  const error = searchParams.get('error') || 'Authentication failed';
-  const message = searchParams.get('message') || 'An error occurred during authentication. Please try again.';
+  const error = searchParams?.get('error') || 'Authentication failed';
+  const message = searchParams?.get('message') || 'An error occurred during authentication. Please try again.';
 
   const handleRetry = () => {
     router.push('/auth/login');
