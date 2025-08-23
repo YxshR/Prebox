@@ -185,7 +185,10 @@ export function EnhancedPasswordCreationStep({
             error={passwordError}
             validation={{
               required: true,
-              custom: (value) => validatePassword(value)
+              custom: (value) => {
+                const result = validatePassword(value);
+                return result.isValid ? null : result.error || 'Invalid password';
+              }
             }}
             onValidationChange={handlePasswordValidation}
           />
@@ -271,7 +274,10 @@ export function EnhancedPasswordCreationStep({
             error={confirmPasswordError}
             validation={{
               required: true,
-              custom: validatePasswordMatch
+              custom: (value) => {
+                const result = validatePasswordMatch(value);
+                return result.isValid ? null : result.error || 'Passwords do not match';
+              }
             }}
             onValidationChange={handleConfirmPasswordValidation}
           />

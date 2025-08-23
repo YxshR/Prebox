@@ -83,7 +83,10 @@ describe('FormField Validation', () => {
         type="email"
         validation={{
           required: true,
-          custom: (value) => validateEmail(value)
+          custom: (value) => {
+            const result = validateEmail(value);
+            return result.isValid ? null : result.error || 'Invalid email';
+          }
         }}
         onValidationChange={mockValidation}
       />
@@ -105,7 +108,10 @@ describe('FormField Validation', () => {
         type="tel"
         validation={{
           required: true,
-          custom: (value) => validatePhone(value)
+          custom: (value) => {
+            const result = validatePhone(value);
+            return result.isValid ? null : result.error || 'Invalid phone number';
+          }
         }}
       />
     );
@@ -126,7 +132,10 @@ describe('FormField Validation', () => {
         type="password"
         validation={{
           required: true,
-          custom: (value) => validatePassword(value)
+          custom: (value) => {
+            const result = validatePassword(value);
+            return result.isValid ? null : result.error || 'Invalid password';
+          }
         }}
       />
     );
@@ -316,11 +325,17 @@ describe('Form Validation Hook', () => {
       {
         email: {
           required: true,
-          custom: (value) => validateEmail(value)
+          custom: (value) => {
+            const result = validateEmail(value);
+            return result.isValid ? null : result.error || 'Invalid email';
+          }
         },
         password: {
           required: true,
-          custom: (value) => validatePassword(value)
+          custom: (value) => {
+            const result = validatePassword(value);
+            return result.isValid ? null : result.error || 'Invalid password';
+          }
         }
       }
     );

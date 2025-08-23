@@ -237,7 +237,10 @@ export function EnhancedPhoneVerificationStep({
             error={otpError}
             validation={{
               required: true,
-              custom: (value) => validateOTP(value)
+              custom: (value) => {
+                const result = validateOTP(value);
+                return result.isValid ? null : result.error || 'Invalid verification code';
+              }
             }}
             onValidationChange={handleOtpValidation}
           />
@@ -319,7 +322,10 @@ export function EnhancedPhoneVerificationStep({
           helperText="Enter with country code or use local format"
           validation={{
             required: true,
-            custom: (value) => validatePhone(value)
+            custom: (value) => {
+              const result = validatePhone(value);
+              return result.isValid ? null : result.error || 'Invalid phone number';
+            }
           }}
           onValidationChange={handlePhoneValidation}
         />

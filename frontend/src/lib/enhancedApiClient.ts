@@ -275,9 +275,11 @@ export class EnhancedApiClient {
    * Build request options with defaults
    */
   private buildRequestOptions(options: RequestOptions): RequestInit {
-    const headers = {
+    const headers: Record<string, string> = {
       ...this.defaultHeaders,
-      ...options.headers
+      ...(options.headers && typeof options.headers === 'object' && !(options.headers instanceof Headers) 
+        ? options.headers as Record<string, string>
+        : {})
     };
 
     // Add authentication token if available
@@ -286,13 +288,11 @@ export class EnhancedApiClient {
       headers.Authorization = `Bearer ${token}`;
     }
 
+    const { timeout, retries, skipRetry, ...requestInit } = options;
+    
     return {
-      ...options,
-      headers,
-      // Remove custom options that aren't part of RequestInit
-      timeout: undefined,
-      retries: undefined,
-      skipRetry: undefined
+      ...requestInit,
+      headers
     };
   }
 

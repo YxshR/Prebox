@@ -238,7 +238,10 @@ export function EnhancedEmailVerificationStep({
             error={codeError}
             validation={{
               required: true,
-              custom: (value) => validateOTP(value)
+              custom: (value) => {
+                const result = validateOTP(value);
+                return result.isValid ? null : result.error || 'Invalid verification code';
+              }
             }}
             onValidationChange={handleCodeValidation}
           />
@@ -320,7 +323,10 @@ export function EnhancedEmailVerificationStep({
           helperText="We'll never share your email with anyone else"
           validation={{
             required: true,
-            custom: (value) => validateEmail(value)
+            custom: (value) => {
+              const result = validateEmail(value);
+              return result.isValid ? null : result.error || 'Invalid email';
+            }
           }}
           onValidationChange={handleEmailValidation}
         />
