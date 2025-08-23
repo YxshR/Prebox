@@ -4,6 +4,8 @@ import { EmailQueue } from './queue/email.queue';
 import { EmailPriority } from './types';
 import Joi from 'joi';
 
+type JobStatus = 'waiting' | 'active' | 'completed' | 'failed' | 'delayed' | 'paused';
+
 export class EmailController {
   private emailService: EmailService;
   private emailQueue: EmailQueue;
@@ -519,7 +521,7 @@ export class EmailController {
 
       // Get jobs from Bull queue
       const jobs = await this.emailQueue.bullQueue.getJobs(
-        status ? [status as string] : ['waiting', 'active', 'completed', 'failed'],
+        status ? [status as JobStatus] : ['waiting', 'active', 'completed', 'failed'],
         parseInt(offset as string),
         parseInt(limit as string)
       );
@@ -571,7 +573,7 @@ export class EmailController {
 
       // Get jobs from Bull queue (admin only)
       const jobs = await this.emailQueue.bullQueue.getJobs(
-        status ? [status as string] : ['waiting', 'active', 'completed', 'failed'],
+        status ? [status as JobStatus] : ['waiting', 'active', 'completed', 'failed'],
         parseInt(offset as string),
         parseInt(limit as string)
       );
@@ -779,20 +781,6 @@ export class EmailController {
       const minutes = estimatedMinutes % 60;
       return `${hours}h ${minutes}m`;
     }
-  }
-
-  private validateSingleEmailRequest(body: any) {
-    const schema = Joi.object({
-      to: Joi.string().email().required(),
-      subject: Joi.string().min(1).max(255).required(),
-      htmlContent: Joi.string().min(1).required(),
-      textContent: Joi.string().optional(),
-      replyTo: Joi.string().email().optional(),
-      priority: Joi.string().valid('low', 'normal', 'high', 'critical').optional(),
-      scheduledAt: Joi.string().isoDate().optional()
-    });
-
-    return schema.validate(body);
   }
 
   private validateBatchEmailRequest(body: any) {

@@ -2,18 +2,9 @@ import { Router, Request, Response } from 'express';
 import { body, validationResult, query } from 'express-validator';
 import { ContactService, ContactFormData, ChatMessage } from './contact.service';
 import { AuthMiddleware } from '../auth/auth.middleware';
+import { AuthenticatedRequest } from '../types/express';
 import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
-
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    tenantId: string;
-    email: string;
-    firstName?: string;
-    lastName?: string;
-  };
-}
 
 export function createContactRoutes(db: Pool): Router {
   const router = Router();

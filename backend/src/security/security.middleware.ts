@@ -58,7 +58,7 @@ export class SecurityMiddleware {
         await this.auditLogService.logSecurityEvent(
           'system',
           null,
-          'BLOCKED_IP_ACCESS_ATTEMPT',
+          'SUSPICIOUS_ACTIVITY' as any,
           ipAddress,
           req.securityContext?.userAgent || '',
           {
@@ -266,7 +266,7 @@ export class SecurityMiddleware {
           await self.auditLogService.logSecurityEvent(
             user?.tenantId || 'system',
             user?.id || null,
-            'PRICING_ACCESS',
+            'SUSPICIOUS_ACTIVITY' as any,
             ipAddress,
             userAgent,
             {

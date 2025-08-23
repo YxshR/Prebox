@@ -404,7 +404,7 @@ export class ComprehensiveSecurityMiddleware {
         
         if (sizeInBytes > maxSizeInBytes) {
           clearTimeout(timeout);
-          return res.status(413).json({
+          res.status(413).json({
             success: false,
             error: {
               code: 'PAYLOAD_TOO_LARGE',
@@ -413,6 +413,7 @@ export class ComprehensiveSecurityMiddleware {
               receivedSize: this.formatBytes(sizeInBytes)
             }
           });
+          return;
         }
       }
 
@@ -526,12 +527,12 @@ export class ComprehensiveSecurityMiddleware {
       throw new Error('JWT_SECRET environment variable is required');
     }
 
-    return jwt.sign(payload, secret, {
+    return jwt.sign(payload, secret as any, {
       expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
       issuer: process.env.JWT_ISSUER || 'bulk-email-platform',
       audience: process.env.JWT_AUDIENCE || 'bulk-email-platform-users',
       algorithm: 'HS256'
-    });
+    } as any);
   }
 
   public static generateRefreshToken(payload: any): string {
@@ -540,12 +541,12 @@ export class ComprehensiveSecurityMiddleware {
       throw new Error('JWT_REFRESH_SECRET environment variable is required');
     }
 
-    return jwt.sign(payload, secret, {
+    return jwt.sign(payload, secret as any, {
       expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
       issuer: process.env.JWT_ISSUER || 'bulk-email-platform',
       audience: process.env.JWT_AUDIENCE || 'bulk-email-platform-users',
       algorithm: 'HS256'
-    });
+    } as any);
   }
 
   public static verifyAccessToken(token: string): any {

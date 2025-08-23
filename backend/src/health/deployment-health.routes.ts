@@ -23,12 +23,12 @@ const comprehensiveHealthService = new ComprehensiveHealthService(db, redisClien
  */
 router.get('/live', async (req: Request, res: Response) => {
   try {
-    const health = await comprehensiveHealthService.getLivenessStatus();
+    const health = await comprehensiveHealthService.getComprehensiveHealth();
     
-    if (health.alive) {
+    if (health.status === 'healthy') {
       res.status(200).json({
         status: 'alive',
-        uptime: health.uptime,
+        uptime: process.uptime(),
         timestamp: new Date().toISOString()
       });
     } else {
@@ -52,7 +52,7 @@ router.get('/live', async (req: Request, res: Response) => {
  */
 router.get('/ready', async (req: Request, res: Response) => {
   try {
-    const readiness = await comprehensiveHealthService.getReadinessStatus();
+    const readiness = await comprehensiveHealthService.getDeploymentReadiness();
     
     if (readiness.ready) {
       res.status(200).json({

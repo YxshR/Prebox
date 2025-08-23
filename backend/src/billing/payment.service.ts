@@ -95,7 +95,7 @@ export interface InvoiceItem {
  */
 export class StripePaymentProvider implements PaymentProvider {
   name: 'stripe' = 'stripe';
-  private stripe: Stripe;
+  private stripe!: Stripe;
 
   constructor() {
     const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -263,7 +263,7 @@ export class StripePaymentProvider implements PaymentProvider {
  */
 export class RazorpayPaymentProvider implements PaymentProvider {
   name: 'razorpay' = 'razorpay';
-  private razorpay: Razorpay;
+  private razorpay!: Razorpay;
 
   constructor() {
     const keyId = process.env.RAZORPAY_KEY_ID;

@@ -174,7 +174,7 @@ export class HealthCheckService {
       ]);
 
       // Also store in Redis for quick access
-      await this.redis.setex('system:health', 60, JSON.stringify(health));
+      await this.redis.setEx('system:health', 60, JSON.stringify(health));
 
     } catch (error) {
       this.logger.error('Failed to store health check', { error });

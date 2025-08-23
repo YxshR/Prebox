@@ -20,8 +20,8 @@ import {
 export class DemoAuthService {
   private readonly JWT_SECRET = process.env.JWT_SECRET || 'demo-jwt-secret-key-for-testing-only';
   private readonly JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'demo-refresh-secret-key-for-testing-only';
-  private readonly JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
-  private readonly JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+  private readonly JWT_EXPIRES_IN: string = process.env.JWT_EXPIRES_IN || '15m';
+  private readonly JWT_REFRESH_EXPIRES_IN: string = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 
   private demoUsers: any[] = [];
 
@@ -135,17 +135,13 @@ export class DemoAuthService {
     };
     
     const secret = this.JWT_SECRET as jwt.Secret;
-    const options: jwt.SignOptions = { expiresIn: this.JWT_EXPIRES_IN as string };
-    
-    return jwt.sign(payload, secret, options);
+    return jwt.sign(payload, secret as any, { expiresIn: this.JWT_EXPIRES_IN } as any);
   }
 
   private generateRefreshToken(user: any): string {
     const payload = { userId: user.id };
     const secret = this.JWT_REFRESH_SECRET as jwt.Secret;
-    const options: jwt.SignOptions = { expiresIn: this.JWT_REFRESH_EXPIRES_IN as string };
-    
-    return jwt.sign(payload, secret, options);
+    return jwt.sign(payload, secret as any, { expiresIn: this.JWT_REFRESH_EXPIRES_IN } as any);
   }
 
   private mapToUser(userData: any): User {
@@ -164,6 +160,40 @@ export class DemoAuthService {
       createdAt: new Date(userData.createdAt),
       lastLoginAt: new Date(userData.lastLoginAt)
     };
+  }
+
+  async register(userData: any): Promise<User> {
+    // Check if user already exists
+    const existingUser = this.demoUsers.find(u => u.email === userData.email);
+    if (existingUser) {
+      throw new Error('User already exists');
+    }
+
+    // Create new user
+    const newUser = {
+      id: `demo-user-${Date.now()}`,
+      email: userData.email,
+      password: userData.password, // In demo, store plain text
+      firstName: userData.firstName || 'Demo',
+      lastName: userData.lastName || 'User',
+      phone: userData.phone,
+      tenantId: userData.tenantId || 'tenant-1',
+      role: userData.role || 'user',
+      subscriptionTier: userData.subscriptionTier || 'free',
+      isEmailVerified: false,
+      isPhoneVerified: false,
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString()
+    };
+
+    this.demoUsers.push(newUser);
+    return this.mapToUser(newUser);
+  }
+
+  async logout(userId: string): Promise<void> {
+    // In demo mode, we don't need to do anything special for logout
+    // In production, this would invalidate tokens, clear sessions, etc.
+    console.log(`Demo user ${userId} logged out`);
   }
 
   // Get all demo users for testing

@@ -1,8 +1,13 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { SubscriberManagementService } from './subscriber-management.service';
 import { authMiddleware } from '../auth/auth.middleware';
 import { validationMiddleware } from '../shared/validation.middleware';
 import { body, param, query } from 'express-validator';
+import { User } from '../shared/types';
+
+interface AuthenticatedRequest extends Request {
+  user?: User;
+}
 
 const router = Router();
 const subscriberService = new SubscriberManagementService();
@@ -108,7 +113,7 @@ router.post('/unsubscribe',
     body('campaignId').optional().isUUID()
   ],
   validationMiddleware,
-  async (req, res) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { email, reason, campaignId } = req.body;
       const ipAddress = req.ip;
@@ -142,10 +147,10 @@ router.get('/:contactId/preferences',
   authMiddleware,
   param('contactId').isUUID().withMessage('Valid contact ID is required'),
   validationMiddleware,
-  async (req, res) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { contactId } = req.params;
-      const tenantId = req.user.tenantId;
+      const tenantId = req.user!.tenantId;
       
       const preferences = await subscriberService.getSubscriberPreferences(tenantId, contactId);
       
@@ -188,10 +193,10 @@ router.put('/:contactId/preferences',
     body('categories').optional().isArray()
   ],
   validationMiddleware,
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const { contactId } = req.params;
-      const tenantId = req.user.tenantId;
+      const tenantId = req.user!.tenantId;
       const updates = req.body;
       
       const updatedPreferences = await subscriberService.updateSubscriberPreferences(
@@ -221,9 +226,9 @@ router.put('/:contactId/preferences',
  */
 router.post('/deduplicate',
   authMiddleware,
-  async (req, res) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const tenantId = req.user.tenantId;
+      const tenantId = req.user!.tenantId;
       
       const result = await subscriberService.deduplicateContacts(tenantId);
       
@@ -254,12 +259,12 @@ router.get('/:contactId/history',
     query('offset').optional().isInt({ min: 0 }).toInt()
   ],
   validationMiddleware,
-  async (req, res) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { contactId } = req.params;
-      const tenantId = req.user.tenantId;
-      const limit = req.query.limit as number || 50;
-      const offset = req.query.offset as number || 0;
+      const tenantId = req.user!.tenantId;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
       
       const result = await subscriberService.getContactHistory(tenantId, contactId, limit, offset);
       
@@ -286,10 +291,10 @@ router.get('/:contactId/analytics',
   authMiddleware,
   param('contactId').isUUID().withMessage('Valid contact ID is required'),
   validationMiddleware,
-  async (req, res) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { contactId } = req.params;
-      const tenantId = req.user.tenantId;
+      const tenantId = req.user!.tenantId;
       
       const analytics = await subscriberService.getContactEngagementAnalytics(tenantId, contactId);
       
@@ -326,7 +331,7 @@ router.post('/generate-unsubscribe-token',
     body('campaignId').optional().isUUID()
   ],
   validationMiddleware,
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const { email, campaignId } = req.body;
       

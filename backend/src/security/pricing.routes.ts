@@ -89,7 +89,7 @@ router.get(
   async (req, res) => {
     try {
       const { planId } = req.params;
-      const pricingData = req.pricingData; // Set by validatePricingSignature middleware
+      const pricingData = (req as any).pricingData; // Set by validatePricingSignature middleware
 
       // Remove JWT signature from response
       const { jwtSignature, ...clientPlan } = pricingData;

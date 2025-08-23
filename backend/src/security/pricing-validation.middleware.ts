@@ -4,9 +4,11 @@ import { PricingProtectionService } from './pricing-protection.service';
 export interface PricingValidationRequest extends Request {
   validatedPricing?: {
     planId: string;
-    serverAmount: number;
-    isValid: boolean;
+    amount: number;
+    currency: string;
+    plan: any;
   };
+  pricingData?: any;
 }
 
 /**
@@ -95,8 +97,9 @@ export class PricingValidationMiddleware {
       // Attach validated pricing to request for downstream use
       req.validatedPricing = {
         planId,
-        serverAmount: validation.serverAmount!,
-        isValid: true
+        amount: validation.serverAmount!,
+        currency: 'USD',
+        plan: validation
       };
 
       next();
@@ -168,8 +171,9 @@ export class PricingValidationMiddleware {
       req.body.amount = validation.serverAmount;
       req.validatedPricing = {
         planId,
-        serverAmount: validation.serverAmount!,
-        isValid: true
+        amount: validation.serverAmount!,
+        currency: 'USD',
+        plan: validation
       };
 
       next();
@@ -249,7 +253,7 @@ export class PricingValidationMiddleware {
       }
 
       // Attach validated pricing to request
-      req.pricingData = pricing;
+      (req as any).pricingData = pricing;
       next();
     } catch (error) {
       console.error('Pricing signature validation error:', error);

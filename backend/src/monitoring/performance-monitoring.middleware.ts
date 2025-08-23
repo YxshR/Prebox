@@ -37,6 +37,7 @@ export class PerformanceMonitoringMiddleware {
 
     // Override res.end to capture response metrics
     const originalEnd = res.end;
+    const monitoringService = this.monitoringService;
     res.end = function(chunk?: any, encoding?: any) {
       const responseTime = Date.now() - startTime;
       
@@ -80,6 +81,7 @@ export class PerformanceMonitoringMiddleware {
 
     // Override res.json to capture auth-specific metrics
     const originalJson = res.json;
+    const authMonitoringService = this.authMonitoringService;
     res.json = function(body: any) {
       const responseTime = Date.now() - startTime;
       const success = res.statusCode >= 200 && res.statusCode < 400;
@@ -138,6 +140,7 @@ export class PerformanceMonitoringMiddleware {
       
       // Override res.end to capture critical path metrics
       const originalEnd = res.end;
+      const monitoringService = this.monitoringService;
       res.end = function(chunk?: any, encoding?: any) {
         const responseTime = Date.now() - startTime;
         
@@ -319,6 +322,7 @@ export class PerformanceMonitoringMiddleware {
     
     // Override res.end to capture memory usage after request
     const originalEnd = res.end;
+    const monitoringService = this.monitoringService;
     res.end = function(chunk?: any, encoding?: any) {
       const memoryAfter = process.memoryUsage();
       const memoryDelta = memoryAfter.heapUsed - memoryBefore.heapUsed;

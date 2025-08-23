@@ -7,7 +7,7 @@
 
 import { SubscriberManagementService } from './subscriber-management.service';
 import { ContactService } from './contact.service';
-import { SubscriptionStatus } from './contact.types';
+import { SubscriptionStatus, SuppressionType } from './contact.types';
 
 const subscriberService = new SubscriberManagementService();
 const contactService = new ContactService();
@@ -83,7 +83,7 @@ export async function processEngagementWebhook(webhookData: any) {
       await contactService.addToSuppressionList(
         webhookData.tenantId,
         email,
-        'bounce',
+        SuppressionType.BOUNCE,
         'Hard bounce from ESP',
         campaignId
       );
@@ -93,7 +93,7 @@ export async function processEngagementWebhook(webhookData: any) {
       await contactService.addToSuppressionList(
         webhookData.tenantId,
         email,
-        'complaint',
+        SuppressionType.COMPLAINT,
         'Spam complaint from recipient',
         campaignId
       );
@@ -333,7 +333,7 @@ export async function generateComplianceReport(tenantId: string) {
       bounceCompliance: bounceRate < 2, // Good if under 2%
       complaintCompliance: complaintRate < 0.1 // Good if under 0.1%
     },
-    recommendations: []
+    recommendations: [] as string[]
   };
   
   // Add recommendations based on metrics

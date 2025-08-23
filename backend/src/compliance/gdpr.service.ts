@@ -151,7 +151,7 @@ export class GDPRService {
         UPDATE gdpr_data_export_requests 
         SET status = 'failed', error_message = $2
         WHERE id = $1
-      `, [requestId, error.message]);
+      `, [requestId, error instanceof Error ? error.message : 'Unknown error']);
 
       console.error('Data export failed:', error);
     } finally {
@@ -292,7 +292,7 @@ export class GDPRService {
         UPDATE gdpr_data_deletion_requests 
         SET status = 'failed', error_message = $2
         WHERE id = $1
-      `, [requestId, error.message]);
+      `, [requestId, error instanceof Error ? error.message : 'Unknown error']);
 
       throw error;
     } finally {

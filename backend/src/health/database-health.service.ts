@@ -71,7 +71,12 @@ export class DatabaseHealthService {
     try {
       if (connectionStatus) {
         await this.migrationService.initializeMigrationsTable();
-        migrationStatus = await this.migrationService.getMigrationStatus();
+        const rawStatus = await this.migrationService.getMigrationStatus();
+        migrationStatus = {
+          executed: rawStatus.executed.length,
+          pending: rawStatus.pending.length,
+          total: rawStatus.total
+        };
       }
     } catch (error) {
       errors.push(`Migration check error: ${error instanceof Error ? error.message : 'Unknown error'}`);

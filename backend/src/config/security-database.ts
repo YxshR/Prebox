@@ -223,7 +223,7 @@ export class SecurityDatabaseService {
       file_path: row.file_path,
       file_name: row.file_name,
       alt_text: row.alt_text,
-      caption: null,
+      caption: undefined,
       section: 'hero' as const,
       display_order: 0,
       metadata: row.metadata

@@ -19,7 +19,7 @@ export class Auth0Service {
   private managementClient: ManagementClient;
   private authenticationClient: AuthenticationClient;
   private phoneVerificationService: PhoneVerificationService;
-  private authService: AuthService;
+  public authService: AuthService;
 
   constructor() {
     const domain = process.env.AUTH0_DOMAIN;

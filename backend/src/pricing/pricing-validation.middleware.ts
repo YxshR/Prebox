@@ -25,7 +25,7 @@ export const validatePricingMiddleware = async (
       planId,
       amount,
       currency: currency || 'INR',
-      userId: req.user?.userId,
+      userId: req.user?.id,
       tenantId: req.user?.tenantId
     });
 
@@ -71,7 +71,7 @@ export const validatePurchaseMiddleware = async (
 ) => {
   try {
     const { planId, amount, currency } = req.body;
-    const { userId, tenantId } = req.user || {};
+    const { id: userId, tenantId } = req.user || {};
 
     if (!planId || typeof amount !== 'number') {
       return res.status(400).json({

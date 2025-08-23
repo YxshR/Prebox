@@ -102,9 +102,9 @@ initializeMonitoring(app, db, redisClient, logger)
     monitoringSystem = monitoring;
     
     // Initialize auth monitoring
-    authMonitoringService = new AuthMonitoringService(db, redisClient, logger, monitoring);
+    authMonitoringService = new AuthMonitoringService(db, redisClient, logger, monitoring.monitoringService);
     authMonitoringMiddleware = new AuthMonitoringMiddleware(authMonitoringService);
-    performanceMonitoringMiddleware = new PerformanceMonitoringMiddleware(monitoring, authMonitoringService);
+    performanceMonitoringMiddleware = new PerformanceMonitoringMiddleware(monitoring.monitoringService, authMonitoringService);
     comprehensiveHealthService = new ComprehensiveHealthService(db, redisClient, logger);
     
     // Store in app locals for access in routes
@@ -189,7 +189,8 @@ app.use('/api/auth',
   securityComplianceMiddleware.monitorAuthentication, // Authentication monitoring
   (req, res, next) => {
     if (authMonitoringMiddleware) {
-      authMonitoringMiddleware.trackAuthPerformance(req, res, next);
+      const middleware = authMonitoringMiddleware.trackAuthPerformance('auth', req.method);
+      middleware(req, res, next);
     } else {
       next();
     }

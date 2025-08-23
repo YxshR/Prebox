@@ -15,29 +15,7 @@ import bcrypt from 'bcryptjs';
 import pool from '../config/database';
 import { ComprehensiveSecurityMiddleware } from './comprehensive-security.middleware';
 import { logger } from '../shared/logger';
-
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    phone?: string;
-    tenantId: string;
-    role: string;
-    subscriptionTier: string;
-    isEmailVerified: boolean;
-    isPhoneVerified: boolean;
-    sessionId?: string;
-  };
-  session?: {
-    id: string;
-    userId: string;
-    createdAt: Date;
-    lastAccessedAt: Date;
-    ipAddress: string;
-    userAgent: string;
-    isActive: boolean;
-  };
-}
+import { AuthenticatedRequest } from '../types/express.d';
 
 export class EnhancedAuthMiddleware {
   private securityMiddleware: ComprehensiveSecurityMiddleware;
@@ -51,7 +29,7 @@ export class EnhancedAuthMiddleware {
    */
   public authenticate = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const token = this.extractToken(req);
+      const token = this.extractToken(req as any);
       
       if (!token) {
         return this.sendUnauthorizedResponse(res, 'MISSING_TOKEN', 'Authentication token is required');
@@ -120,10 +98,11 @@ export class EnhancedAuthMiddleware {
         subscriptionTier: userRow.subscription_tier,
         isEmailVerified: userRow.is_email_verified,
         isPhoneVerified: userRow.is_phone_verified,
-        sessionId: userRow.session_id
+        createdAt: new Date(userRow.created_at),
+        lastLoginAt: new Date(userRow.last_login_at || userRow.created_at)
       };
 
-      req.session = {
+      (req as any).session = {
         id: userRow.session_id,
         userId: userRow.id,
         createdAt: new Date(userRow.session_created_at),
@@ -135,8 +114,8 @@ export class EnhancedAuthMiddleware {
 
       // Log successful authentication
       logger.info('Authentication successful', {
-        userId: req.user.id,
-        sessionId: req.user.sessionId,
+        userId: req.user?.id,
+        sessionId: (req.user as any)?.sessionId,
         endpoint: req.path
       });
 
@@ -151,7 +130,7 @@ export class EnhancedAuthMiddleware {
    * Optional authentication - doesn't fail if no token provided
    */
   public optionalAuthenticate = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-    const token = this.extractToken(req);
+    const token = this.extractToken(req as any);
     
     if (!token) {
       return next(); // Continue without authentication

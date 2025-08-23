@@ -18,7 +18,7 @@ router.use(authMiddleware);
  */
 router.get('/subscription', async (req, res) => {
   try {
-    const { tenantId } = req.user;
+    const { tenantId } = req.user!;
     
     // Get subscription from database
     const subscription = await subscriptionService.getSubscriptionByTenantId(tenantId);
@@ -80,7 +80,7 @@ router.get('/subscription', async (req, res) => {
  */
 router.get('/usage', async (req, res) => {
   try {
-    const { tenantId } = req.user;
+    const { tenantId } = req.user!;
     const { period = '30d' } = req.query;
     
     const subscription = await subscriptionService.getSubscriptionByTenantId(tenantId);
@@ -158,7 +158,7 @@ router.get('/usage', async (req, res) => {
  */
 router.get('/history', async (req, res) => {
   try {
-    const { tenantId } = req.user;
+    const { tenantId } = req.user!;
     const { limit = 50, offset = 0, type } = req.query;
     
     // Get invoices from database
@@ -231,7 +231,7 @@ router.get('/history', async (req, res) => {
  */
 router.post('/recharge', async (req, res) => {
   try {
-    const { userId, tenantId } = req.user;
+    const { id: userId, tenantId } = req.user!;
     const { amount, paymentMethodId, provider = 'stripe' } = req.body;
 
     if (!amount || amount < 10) {
@@ -294,7 +294,7 @@ router.post('/recharge', async (req, res) => {
  */
 router.get('/analytics', async (req, res) => {
   try {
-    const { tenantId } = req.user;
+    const { tenantId } = req.user!;
     const { period = '30d' } = req.query;
     
     // TODO: Implement real analytics from database

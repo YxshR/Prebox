@@ -243,52 +243,7 @@ export class WebhookHandler {
     await this.eventProcessor.processComplaintEvent(complaint);
   }
 
-  private async verifySNSSignature(req: Request): Promise<boolean> {
-    // Implement SNS signature verification
-    // This is a simplified version - in production, use AWS SDK's SNS signature verification
-    try {
-      const message = req.body;
-      const signature = message.Signature;
-      const signingCertURL = message.SigningCertURL;
-      
-      // In production, you would:
-      // 1. Download the certificate from signingCertURL
-      // 2. Verify the certificate is from AWS
-      // 3. Use the certificate to verify the signature
-      
-      return true; // Simplified for demo
-    } catch (error) {
-      console.error('SNS signature verification error:', error);
-      return false;
-    }
-  }
 
-  private verifySendGridSignature(req: Request): boolean {
-    // Implement SendGrid signature verification
-    try {
-      const signature = req.headers['x-twilio-email-event-webhook-signature'] as string;
-      const timestamp = req.headers['x-twilio-email-event-webhook-timestamp'] as string;
-      const body = JSON.stringify(req.body);
-      
-      if (!signature || !timestamp || !process.env.SENDGRID_WEBHOOK_SECRET) {
-        return false;
-      }
-
-      const payload = timestamp + body;
-      const expectedSignature = crypto
-        .createHmac('sha256', process.env.SENDGRID_WEBHOOK_SECRET)
-        .update(payload)
-        .digest('base64');
-
-      return crypto.timingSafeEqual(
-        Buffer.from(signature),
-        Buffer.from(expectedSignature)
-      );
-    } catch (error) {
-      console.error('SendGrid signature verification error:', error);
-      return false;
-    }
-  }
 
   private extractTenantId(tags: any[]): string {
     const tenantTag = tags?.find(tag => tag.Name === 'TenantId');

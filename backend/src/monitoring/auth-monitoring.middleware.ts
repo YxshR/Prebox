@@ -20,6 +20,7 @@ export class AuthMonitoringMiddleware {
    * Middleware to track authentication performance
    */
   trackAuthPerformance = (eventType: string, method: string) => {
+    const authService = this.authMonitoringService; // Capture reference
     return (req: AuthMonitoringRequest, res: Response, next: NextFunction) => {
       req.authMonitoring = {
         startTime: Date.now(),
@@ -35,7 +36,7 @@ export class AuthMonitoringMiddleware {
 
         // Record the auth event
         setImmediate(() => {
-          authMonitoringService.recordAuthEvent({
+          authService.recordAuthEvent({
             eventType: eventType as any,
             userId: body?.data?.user?.id,
             email: req.body?.email || body?.data?.user?.email,

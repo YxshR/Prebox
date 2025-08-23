@@ -70,61 +70,61 @@ export class SecurityConfigService {
 
       if (updates.maxLoginAttempts !== undefined) {
         setClause.push(`max_login_attempts = $${paramIndex}`);
-        values.push(updates.maxLoginAttempts);
+        values.push(updates.maxLoginAttempts.toString());
         paramIndex++;
       }
 
       if (updates.lockoutDurationMinutes !== undefined) {
         setClause.push(`lockout_duration_minutes = $${paramIndex}`);
-        values.push(updates.lockoutDurationMinutes);
+        values.push(updates.lockoutDurationMinutes.toString());
         paramIndex++;
       }
 
       if (updates.passwordMinLength !== undefined) {
         setClause.push(`password_min_length = $${paramIndex}`);
-        values.push(updates.passwordMinLength);
+        values.push(updates.passwordMinLength.toString());
         paramIndex++;
       }
 
       if (updates.passwordRequireUppercase !== undefined) {
         setClause.push(`password_require_uppercase = $${paramIndex}`);
-        values.push(updates.passwordRequireUppercase);
+        values.push(updates.passwordRequireUppercase.toString());
         paramIndex++;
       }
 
       if (updates.passwordRequireLowercase !== undefined) {
         setClause.push(`password_require_lowercase = $${paramIndex}`);
-        values.push(updates.passwordRequireLowercase);
+        values.push(updates.passwordRequireLowercase.toString());
         paramIndex++;
       }
 
       if (updates.passwordRequireNumbers !== undefined) {
         setClause.push(`password_require_numbers = $${paramIndex}`);
-        values.push(updates.passwordRequireNumbers);
+        values.push(updates.passwordRequireNumbers.toString());
         paramIndex++;
       }
 
       if (updates.passwordRequireSymbols !== undefined) {
         setClause.push(`password_require_symbols = $${paramIndex}`);
-        values.push(updates.passwordRequireSymbols);
+        values.push(updates.passwordRequireSymbols.toString());
         paramIndex++;
       }
 
       if (updates.sessionTimeoutMinutes !== undefined) {
         setClause.push(`session_timeout_minutes = $${paramIndex}`);
-        values.push(updates.sessionTimeoutMinutes);
+        values.push(updates.sessionTimeoutMinutes.toString());
         paramIndex++;
       }
 
       if (updates.apiRateLimitPerMinute !== undefined) {
         setClause.push(`api_rate_limit_per_minute = $${paramIndex}`);
-        values.push(updates.apiRateLimitPerMinute);
+        values.push(updates.apiRateLimitPerMinute.toString());
         paramIndex++;
       }
 
       if (updates.enable2FA !== undefined) {
         setClause.push(`enable_2fa = $${paramIndex}`);
-        values.push(updates.enable2FA);
+        values.push(updates.enable2FA.toString());
         paramIndex++;
       }
 

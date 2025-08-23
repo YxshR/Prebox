@@ -10,15 +10,15 @@ import rateLimit from 'express-rate-limit';
 import { json, urlencoded } from 'express';
 
 // Import all route modules
-import { authRoutes } from '../../auth/auth.routes';
-import { multiStepSignupRoutes } from '../../auth/multi-step-signup.routes';
-import { loginRoutes } from '../../auth/login.routes';
-import { auth0Routes } from '../../auth/auth0.routes';
-import { pricingRoutes } from '../../pricing/pricing.routes';
-import { healthRoutes } from '../../health/health.routes';
+import authRoutes from '../../auth/auth.routes';
+import multiStepSignupRoutes from '../../auth/multi-step-signup.routes';
+import loginRoutes from '../../auth/login.routes';
+import auth0Routes from '../../auth/auth0.routes';
+import pricingRoutes from '../../pricing/pricing.routes';
+import healthRoutes from '../../health/health.routes';
 
 // Import middleware
-import { errorHandler } from '../../middleware/api-error-handler.middleware';
+import { apiErrorHandler } from '../../middleware/api-error-handler.middleware';
 import { validationMiddleware } from '../../shared/validation.middleware';
 
 export async function createTestApp(): Promise<Express> {
@@ -84,7 +84,7 @@ export async function createTestApp(): Promise<Express> {
   });
 
   // Error handling middleware (must be last)
-  app.use(errorHandler);
+  app.use(apiErrorHandler);
 
   // 404 handler
   app.use('*', (req, res) => {

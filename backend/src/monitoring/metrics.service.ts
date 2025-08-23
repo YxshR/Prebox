@@ -183,7 +183,7 @@ export class MetricsService {
    */
   async setRealTimeMetric(name: string, value: number, ttl: number = 300): Promise<void> {
     try {
-      await this.redis.setex(`metric:${name}`, ttl, value.toString());
+      await this.redis.setEx(`metric:${name}`, ttl, value.toString());
     } catch (error) {
       this.logger.error('Failed to set real-time metric', { error, name });
     }

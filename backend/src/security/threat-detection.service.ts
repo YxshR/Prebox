@@ -40,7 +40,7 @@ export interface SecurityMetrics {
 export class ThreatDetectionService {
   private auditLogService: AuditLogService;
   private encryptionService: EncryptionService;
-  private alertThresholds: Map<ThreatType, number>;
+  private alertThresholds!: Map<ThreatType, number>;
   private isDemoMode: boolean;
 
   constructor() {
@@ -224,7 +224,7 @@ export class ThreatDetectionService {
       if (failedAttempts >= threshold) {
         await this.createThreatAlert({
           tenantId,
-          userId,
+          userId: userId || undefined,
           threatType: 'BRUTE_FORCE_ATTACK',
           severity: failedAttempts > 10 ? 'HIGH' : 'MEDIUM',
           description: `${failedAttempts} failed login attempts from IP ${ipAddress} in 15 minutes`,
@@ -510,7 +510,7 @@ export class ThreatDetectionService {
       // Log the security event
       await this.auditLogService.logSecurityEvent(
         alert.tenantId,
-        alert.userId,
+        alert.userId || null,
         'THREAT_DETECTED',
         alert.ipAddress,
         alert.userAgent,

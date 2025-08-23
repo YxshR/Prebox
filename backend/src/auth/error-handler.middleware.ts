@@ -98,7 +98,7 @@ export class ErrorHandlerMiddleware {
     ];
     
     return retryableCodes.includes(err.code || '') || 
-           (err.status && err.status >= 500);
+           Boolean(err.status && err.status >= 500);
   }
 
   /**
@@ -245,8 +245,8 @@ export class ErrorHandlerMiddleware {
 
     // Add status to details if not already present
     if (!err.details?.status) {
-      errorResponse.error.details = {
-        ...errorResponse.error.details,
+      (errorResponse.error as any).details = {
+        ...(errorResponse.error as any).details,
         status: ErrorHandlerMiddleware.getStatusFromErrorCode(err.code || 'INTERNAL_SERVER_ERROR')
       };
     }

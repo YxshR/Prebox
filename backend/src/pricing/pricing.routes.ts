@@ -300,7 +300,7 @@ router.post('/seed', adminRateLimit, authMiddleware, requireAdmin, async (req, r
 
     // Log admin action
     console.log('Default pricing plans seeded by admin:', {
-      adminId: req.user?.userId || req.user?.id,
+      adminId: req.user?.id,
       timestamp: new Date().toISOString()
     });
 

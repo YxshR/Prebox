@@ -12,7 +12,7 @@ export interface FallbackLogEntry {
 }
 
 export class FallbackLoggerService {
-  private logger: winston.Logger;
+  private logger!: winston.Logger;
   private logDirectory: string;
   private maxFileSize: number = 10 * 1024 * 1024; // 10MB
   private maxFiles: number = 5;
@@ -201,7 +201,7 @@ export class FallbackLoggerService {
     }
 
     // Wait for at least one alternative logger to succeed
-    await Promise.any(promises);
+    await Promise.allSettled(promises);
   }
 
   /**

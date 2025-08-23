@@ -29,7 +29,7 @@ export class ResilientSecurityMonitorService {
   private isDemoMode: boolean;
   
   private healthStatus: SecurityMonitoringHealth;
-  private healthCheckInterval: NodeJS.Timeout;
+  private healthCheckInterval!: NodeJS.Timeout;
   private recoveryAttempts: Map<string, number> = new Map();
   private maxRecoveryAttempts = 3;
   private recoveryDelay = 5000; // 5 seconds
@@ -546,16 +546,13 @@ export class ResilientSecurityMonitorService {
         // Create a security monitoring alert rule
         const rule = await this.alertingService.createAlertRule({
           name: 'Security Monitoring System',
-          description: 'Monitors security system health and issues',
           metric: 'security_health',
           threshold: 0,
-          operator: 'less_than',
+          timeWindow: 5,
+          condition: 'less_than',
+          channels: ['EMAIL' as any],
           severity: 'medium',
-          enabled: true,
-          metadata: {
-            component: 'security-monitoring',
-            type: 'system-health'
-          }
+          enabled: true
         });
         this.securityMonitoringRuleId = rule.id;
         return rule.id;
@@ -585,7 +582,7 @@ export class ResilientSecurityMonitorService {
       // TODO: Fix alert rule creation and database schema issues
       if (false && this.alertingService) {
         const ruleId = await this.ensureSecurityMonitoringRule();
-        await this.alertingService.createAlert({
+        await this.alertingService?.createAlert({
           ruleId,
           message: `Security Monitoring: ${message}`,
           severity,

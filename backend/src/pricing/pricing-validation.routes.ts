@@ -185,7 +185,7 @@ router.post('/validate', strictPricingRateLimit, async (req, res) => {
 router.post('/purchase', strictPricingRateLimit, authMiddleware, async (req, res) => {
   try {
     const { planId, amount, currency = 'INR' } = req.body;
-    const { userId, tenantId } = req.user;
+    const { id: userId, tenantId } = req.user!;
 
     // Validate required fields
     if (!planId || typeof amount !== 'number') {
@@ -277,7 +277,7 @@ router.post('/cache/refresh', authMiddleware, async (req, res) => {
 
     // Log admin action
     console.log('Pricing cache refreshed by admin:', {
-      adminId: req.user.userId,
+      adminId: req.user!.id,
       timestamp: new Date().toISOString()
     });
 
@@ -366,7 +366,7 @@ router.get('/health', async (req, res) => {
       data: {
         status: 'unhealthy',
         service: 'pricing-validation',
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString()
       }
     } as ApiResponse);
