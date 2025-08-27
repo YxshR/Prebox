@@ -97,21 +97,29 @@ export class FallbackLoggerService {
 
       // Memory logger for critical events (temporary storage)
       const memoryLogs: any[] = [];
+      const { Writable } = require('stream');
+      const memoryStream = new Writable({
+        write(chunk: any, encoding: any, callback: any) {
+          try {
+            const message = chunk.toString();
+            memoryLogs.push(JSON.parse(message));
+            // Keep only last 100 entries to prevent memory issues
+            if (memoryLogs.length > 100) {
+              memoryLogs.shift();
+            }
+          } catch (error) {
+            console.error('Failed to parse log message for memory storage:', error);
+          }
+          callback();
+        }
+      });
+      
       const memoryLogger = winston.createLogger({
         level: 'error',
         format: winston.format.json(),
         transports: [
           new winston.transports.Stream({
-            stream: {
-              write: (message: string) => {
-                memoryLogs.push(JSON.parse(message));
-                // Keep only last 100 entries to prevent memory issues
-                if (memoryLogs.length > 100) {
-                  memoryLogs.shift();
-                }
-                return true;
-              }
-            } as any
+            stream: memoryStream
           })
         ]
       });

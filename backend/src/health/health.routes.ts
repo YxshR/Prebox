@@ -13,29 +13,43 @@ router.use('/', enhancedHealthRoutes);
  * Simple health check for load balancers
  */
 router.get('/', ErrorHandlerMiddleware.asyncHandler(async (req: Request, res: Response) => {
+  const startTime = Date.now();
+  
   try {
-    const health = await healthService.getSimpleHealth();
+    // Add timeout to prevent hanging requests
+    const healthPromise = healthService.getSimpleHealth();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Health check timeout')), 5000)
+    );
+    
+    const health = await Promise.race([healthPromise, timeoutPromise]);
     
     // Add response time header
-    res.setHeader('X-Response-Time', Date.now().toString());
+    res.setHeader('X-Response-Time', (Date.now() - startTime).toString());
     
     res.status(200).json({
       success: true,
       data: {
         ...health,
         timestamp: new Date().toISOString(),
-        version: process.env.API_VERSION || 'v1'
+        version: process.env.API_VERSION || 'v1',
+        responseTime: Date.now() - startTime
       }
     });
   } catch (error) {
     console.error('Health check failed:', error);
+    
+    // Add response time even for errors
+    res.setHeader('X-Response-Time', (Date.now() - startTime).toString());
+    
     res.status(503).json({
       success: false,
       error: {
         code: 'SERVICE_UNHEALTHY',
         message: 'Service is currently unhealthy',
         timestamp: new Date().toISOString(),
-        retryable: true
+        retryable: true,
+        responseTime: Date.now() - startTime
       }
     });
   }

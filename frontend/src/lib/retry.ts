@@ -211,12 +211,12 @@ export async function fetchWithRetry(
 ): Promise<Response> {
   return retryApiCall(async () => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // Reduced to 10 second timeout
     
     try {
       const response = await fetch(url, {
         ...options,
-        signal: controller.signal
+        signal: options.signal || controller.signal // Use provided signal or create new one
       });
       
       clearTimeout(timeoutId);

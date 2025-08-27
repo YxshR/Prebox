@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reset Client State</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { padding: 10px 20px; background: #28a745; color: white; border: none; cursor: pointer; margin: 5px; }
+        .result { margin-top: 20px; padding: 10px; border-radius: 4px; background: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+    <h1>Reset Client State</h1>
+    <p>This will clear all localStorage data and reset the circuit breaker state.</p>
+    
+    <button onclick="resetState()">Reset All Client State</button>
+    <button onclick="testAPI()">Test API Connection</button>
+    
+    <div id="result"></div>
+
+    <script>
+        function resetState() {
+            // Clear localStorage
+            localStorage.clear();
+            
+            // Clear sessionStorage
+            sessionStorage.clear();
+            
+            // Clear any rate limiting data
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                if (key.startsWith('api_') || key.startsWith('rate_limit_') || key.includes('circuit')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            
+            document.getElementById('result').innerHTML = `
+                <div class="result">
+                    ✅ Client state reset successfully!<br>
+                    ✅ localStorage cleared<br>
+                    ✅ sessionStorage cleared<br>
+                    ✅ Rate limiting data cleared<br>
+                    <br>
+                    You can now try registration again.
+                </div>
+            `;
+        }
+        
+        async function testAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing API connection...';
+            
+            try {
+                const response = await fetch('http://localhost:3001/api/health');
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="result">
+                        ✅ API Connection Successful!<br>
+                        Status: ${data.data.status}<br>
+                        Message: ${data.data.message}<br>
+                        Timestamp: ${data.data.timestamp}
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div style="background: #f8d7da; color: #721c24;" class="result">
+                        ❌ API Connection Failed<br>
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</body>
+</html>

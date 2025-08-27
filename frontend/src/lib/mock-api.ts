@@ -22,7 +22,7 @@ export class MockApiService {
     try {
       const response = await fetch('/api/health', {
         method: 'GET',
-        signal: AbortSignal.timeout(2000),
+        signal: AbortSignal.timeout(10000), // Increased timeout to 10 seconds
       });
       this.isOnline = response.ok;
     } catch {

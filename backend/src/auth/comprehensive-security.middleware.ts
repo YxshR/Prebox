@@ -313,7 +313,7 @@ export class ComprehensiveSecurityMiddleware {
         res.setHeader('Retry-After', String(secs));
         res.setHeader('X-RateLimit-Limit', rejRes.totalHits || 0);
         res.setHeader('X-RateLimit-Remaining', 0);
-        res.setHeader('X-RateLimit-Reset', new Date(Date.now() + rejRes.msBeforeNext).toISOString());
+        res.setHeader('X-RateLimit-Reset', new Date(Date.now() + (rejRes.msBeforeNext || 0)).toISOString());
 
         // Log rate limit violation
         logger.warn('Rate limit exceeded', {
@@ -454,13 +454,14 @@ export class ComprehensiveSecurityMiddleware {
   public slowDownMiddleware = slowDown({
     windowMs: 15 * 60 * 1000, // 15 minutes
     delayAfter: 50, // Start delaying after 50 requests
-    delayMs: 500, // 500ms delay per request over the limit
+    delayMs: () => 500, // Fixed function format for v2 compatibility
     maxDelayMs: 10000, // Maximum delay of 10 seconds
     keyGenerator: (req: Request) => this.getClientIp(req),
     skip: (req: Request) => {
       // Skip for authenticated API key requests
       return !!(req.headers['x-api-key'] || req.headers.authorization);
-    }
+    },
+    validate: { delayMs: false } // Disable the warning
   });
 
   /**

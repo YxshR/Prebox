@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import Joi from 'joi';
 import { Auth0Service } from './auth0.service';
 import { AuthMiddleware } from './auth.middleware';
-import { Auth0SignupRequest } from '../shared/types';
 
 const router = Router();
 const auth0Service = new Auth0Service();
@@ -26,7 +25,7 @@ router.get('/login', (req: Request, res: Response) => {
   try {
     const state = req.query.state as string;
     const authUrl = auth0Service.getAuthorizationUrl(state);
-    
+
     res.json({
       success: true,
       data: { authUrl }
@@ -50,7 +49,7 @@ router.get('/signup', (req: Request, res: Response) => {
   try {
     const state = 'signup'; // Indicate this is a signup flow
     const authUrl = auth0Service.getAuthorizationUrl(state);
-    
+
     res.json({
       success: true,
       data: { authUrl }
@@ -87,7 +86,7 @@ router.get('/callback', async (req: Request, res: Response) => {
 
     // Exchange code for user profile
     const auth0Profile = await auth0Service.exchangeCodeForTokens(code as string);
-    
+
     // Handle the callback and create/login user
     const result = await auth0Service.handleAuth0Callback(auth0Profile);
 
@@ -98,8 +97,8 @@ router.get('/callback', async (req: Request, res: Response) => {
     } else {
       // Existing user or user doesn't need phone verification - redirect with tokens
       // Generate auth tokens for the user
-      const authToken = await auth0Service.authService.login({ 
-        email: result.user.email, 
+      const authToken = await auth0Service.authService.login({
+        email: result.user.email,
         password: '' // Auth0 users don't have passwords
       });
 
@@ -179,7 +178,7 @@ router.post('/verify-phone', async (req: Request, res: Response) => {
     }
 
     const { otpId, code } = value;
-    
+
     const authResult = await auth0Service.verifyAuth0Phone(otpId, code);
 
     res.json({
@@ -191,7 +190,7 @@ router.post('/verify-phone', async (req: Request, res: Response) => {
   } catch (error: any) {
     let statusCode = 400;
     let errorCode = 'PHONE_VERIFICATION_FAILED';
-    
+
     if (error.message.includes('expired')) {
       statusCode = 404;
       errorCode = 'OTP_EXPIRED';
@@ -199,7 +198,7 @@ router.post('/verify-phone', async (req: Request, res: Response) => {
       statusCode = 429;
       errorCode = 'TOO_MANY_ATTEMPTS';
     }
-    
+
     res.status(statusCode).json({
       success: false,
       error: {

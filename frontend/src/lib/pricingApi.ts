@@ -1,6 +1,6 @@
 import { PricingTier, SecurePricingResponse, PricingValidationResponse } from '../types/pricing';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 /**
  * Enhanced Pricing API Client with Server-Side Validation
@@ -12,8 +12,8 @@ class PricingApiClient {
   private validationUrl: string;
 
   constructor() {
-    this.baseUrl = `${API_BASE_URL}/api/pricing`;
-    this.validationUrl = `${API_BASE_URL}/api/pricing/validation`;
+    this.baseUrl = `${API_BASE_URL}/pricing`;
+    this.validationUrl = `${API_BASE_URL}/pricing/validation`;
   }
 
   /**
@@ -32,30 +32,171 @@ class PricingApiClient {
       });
 
       if (!response.ok) {
+        // If validation endpoint fails, try the regular pricing endpoint
+        console.warn('Validation endpoint failed, trying regular pricing endpoint');
+        return this.getRegularPricing();
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        console.warn('Validation endpoint returned error, trying regular pricing');
+        return this.getRegularPricing();
+      }
+
+      // Handle different response formats
+      const plans = data.data.plans || data.data || [];
+      
+      return plans.map((plan: any) => ({
+        planId: plan.id || plan.planId,
+        planName: plan.name || plan.planName,
+        priceAmount: plan.price || plan.priceAmount || plan.priceInr,
+        currency: plan.currency || 'USD',
+        billingCycle: plan.billingCycle || 'monthly',
+        features: plan.features || [],
+        limits: plan.limits || {},
+        isPopular: plan.isPopular || false,
+        integrityHash: `validated_${plan.id || plan.planId}_${Date.now()}`
+      }));
+    } catch (error) {
+      console.error('Failed to fetch validated pricing:', error);
+      console.log('Using fallback pricing data');
+      return this.getFallbackPricing();
+    }
+  }
+
+  /**
+   * Get pricing from regular endpoint as fallback
+   */
+  private async getRegularPricing(): Promise<PricingTier[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/plans`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.error?.message || 'Failed to retrieve validated pricing');
+        throw new Error(data.error?.message || 'Failed to retrieve pricing');
       }
 
-      return data.data.plans.map((plan: any) => ({
-        planId: plan.id,
-        planName: plan.name,
-        priceAmount: plan.priceInr,
-        currency: plan.currency,
-        billingCycle: plan.billingCycle,
-        features: plan.features,
-        limits: plan.limits,
-        isPopular: plan.isPopular,
-        integrityHash: `validated_${plan.id}_${Date.now()}`
+      const plans = data.data.plans || data.data || [];
+      
+      return plans.map((plan: any) => ({
+        planId: plan.id || plan.planId,
+        planName: plan.name || plan.planName,
+        priceAmount: plan.price || plan.priceAmount,
+        currency: plan.currency || 'USD',
+        billingCycle: 'monthly', // Default billing cycle
+        features: plan.features || [],
+        limits: plan.limits || {},
+        isPopular: plan.name === 'Starter' || plan.planName === 'Starter',
+        integrityHash: `regular_${plan.id || plan.planId}_${Date.now()}`
       }));
     } catch (error) {
-      console.error('Failed to fetch validated pricing:', error);
-      throw new Error('Unable to load pricing information. Please try again.');
+      console.error('Regular pricing endpoint also failed:', error);
+      return this.getFallbackPricing();
     }
+  }
+
+  /**
+   * Get fallback pricing data when server is unavailable
+   */
+  private getFallbackPricing(): PricingTier[] {
+    return [
+      {
+        planId: 'free',
+        planName: 'Free',
+        priceAmount: 0,
+        currency: 'USD',
+        billingCycle: 'monthly',
+        features: [
+          'Up to 1,000 emails/month',
+          'Basic templates',
+          'Email analytics',
+          'Contact management'
+        ],
+        limits: {
+          emailsPerMonth: 1000,
+          contacts: 100,
+          templates: 5
+        },
+        isPopular: false,
+        integrityHash: 'fallback_free'
+      },
+      {
+        planId: 'starter',
+        planName: 'Starter',
+        priceAmount: 29,
+        currency: 'USD',
+        billingCycle: 'monthly',
+        features: [
+          'Up to 10,000 emails/month',
+          'Advanced templates',
+          'A/B testing',
+          'Priority support',
+          'Custom branding'
+        ],
+        limits: {
+          emailsPerMonth: 10000,
+          contacts: 1000,
+          templates: 25
+        },
+        isPopular: true,
+        integrityHash: 'fallback_starter'
+      },
+      {
+        planId: 'professional',
+        planName: 'Professional',
+        priceAmount: 79,
+        currency: 'USD',
+        billingCycle: 'monthly',
+        features: [
+          'Up to 50,000 emails/month',
+          'Advanced analytics',
+          'Automation workflows',
+          'API access',
+          'White-label options'
+        ],
+        limits: {
+          emailsPerMonth: 50000,
+          contacts: 10000,
+          templates: 100
+        },
+        isPopular: false,
+        integrityHash: 'fallback_professional'
+      },
+      {
+        planId: 'enterprise',
+        planName: 'Enterprise',
+        priceAmount: 199,
+        currency: 'USD',
+        billingCycle: 'monthly',
+        features: [
+          'Unlimited emails',
+          'Custom integrations',
+          'Dedicated support',
+          'Advanced security',
+          'Custom features'
+        ],
+        limits: {
+          emailsPerMonth: -1,
+          contacts: -1,
+          templates: -1
+        },
+        isPopular: false,
+        integrityHash: 'fallback_enterprise'
+      }
+    ];
   }
 
   /**

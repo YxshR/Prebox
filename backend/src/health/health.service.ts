@@ -88,8 +88,13 @@ export class HealthService {
         };
       }
       
-      // Quick database ping for production
-      await db.query('SELECT 1');
+      // Quick database ping with timeout for production
+      const dbPromise = db.query('SELECT 1');
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database timeout')), 3000)
+      );
+      
+      await Promise.race([dbPromise, timeoutPromise]);
       
       return {
         status: 'OK',

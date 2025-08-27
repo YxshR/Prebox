@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { RegisterData, authApi } from '../../lib/auth';
+import { apiClient } from '../../lib/api-client';
 import toast from 'react-hot-toast';
 import { GoogleAuthButton } from './GoogleAuthButton';
 
@@ -42,10 +43,22 @@ export default function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         registrationMethod: 'phone_google',
       };
 
+      console.log('Attempting registration with data:', { ...registerData, password: '[HIDDEN]' });
+
+      // First check if backend is reachable
+      try {
+        await apiClient.get('/health');
+        console.log('✅ Backend is reachable');
+      } catch (healthError) {
+        console.error('❌ Backend health check failed:', healthError);
+        throw new Error('Cannot connect to server. Please make sure the backend is running on port 3001.');
+      }
+
       const response = await authApi.register(registerData);
-      
+
+      console.log('Registration successful:', response);
       toast.success('Registration successful! Please verify your phone number.');
-      
+
       onSuccess({
         userId: response.user.id,
         email: response.user.email,
@@ -54,9 +67,23 @@ export default function RegistrationForm({ onSuccess }: RegistrationFormProps) {
         phone: data.phone,
       });
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error?.message || 'Registration failed. Please try again.';
+      console.error('Registration error:', error);
+
+      let errorMessage = 'Registration failed. Please try again.';
+
+      // Handle different types of errors
+      if (error.response?.data?.error?.message) {
+        errorMessage = error.response.data.error.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else if (error.code === 'ECONNREFUSED') {
+        errorMessage = 'Cannot connect to server. Please make sure the backend is running.';
+      } else if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Request timeout. Please check your connection and try again.';
+      }
+
       toast.error(errorMessage);
-      
+
       // Handle specific validation errors
       if (error.response?.data?.error?.code === 'VALIDATION_ERROR') {
         const message = error.response.data.error.message;
@@ -64,6 +91,15 @@ export default function RegistrationForm({ onSuccess }: RegistrationFormProps) {
           setError('phone', { type: 'manual', message });
         }
       }
+
+      // Log detailed error for debugging
+      console.error('Detailed registration error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        code: error.code,
+        message: error.message
+      });
     } finally {
       setLoading(false);
     }
@@ -158,7 +194,7 @@ export default function RegistrationForm({ onSuccess }: RegistrationFormProps) {
           </div>
 
           <div className="mt-6">
-            <GoogleAuthButton 
+            <GoogleAuthButton
               onSuccess={(user) => {
                 console.log('Google signup successful:', user);
                 // Handle successful Google signup

@@ -35,7 +35,7 @@ export class ApiClient {
 
   constructor(config: ApiClientConfig) {
     this.baseURL = config.baseURL;
-    this.timeout = config.timeout || 30000;
+    this.timeout = config.timeout || 10000; // Reduced from 30s to 10s
     this.retries = config.retries || 3;
     this.defaultHeaders = {
       'Content-Type': 'application/json',
@@ -220,11 +220,11 @@ export class ApiClient {
 export const createApiClient = (config?: Partial<ApiClientConfig>): ApiClient => {
   const baseURL = config?.baseURL || 
                   process.env.NEXT_PUBLIC_API_URL || 
-                  'http://localhost:8000/api';
+                  'http://localhost:3001/api'; // Fixed port to match backend
 
   return new ApiClient({
     baseURL,
-    timeout: 30000,
+    timeout: 10000, // Reduced timeout
     retries: 3,
     ...config
   });
